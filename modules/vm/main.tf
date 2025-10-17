@@ -1,7 +1,7 @@
 resource "google_compute_instance" "vm" {
   name = var.vm_name
   machine_type = var.machine_type
-  tags = compact(["${var.vm_name}-web"])
+  tags = var.target_tags
 
   boot_disk {
     initialize_params {
