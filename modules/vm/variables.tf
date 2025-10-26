@@ -49,3 +49,15 @@ variable "container_http_port" {
   default     = 80
   description = "Container HTTP port exposed by the image"
 }
+
+variable "region" {
+  type = string
+}
+
+variable "project_id" {
+  type = string
+}
+
+variable "zone" {
+  type = string
+}
