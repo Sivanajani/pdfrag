@@ -3,15 +3,8 @@ locals {
   target_tags = ["${var.vm_name}-web"]
 }
 
-provider "google" {
-  project = var.project_id
-  region = var.region
-  zone = var.zone
-  credentials = "./credentials.json"
-}
-
 module "firewall" {
-  source = "./modules/firewall"
+  source = "../../modules/firewall"
 
   network = var.network
   target_tags = local.target_tags
@@ -19,7 +12,7 @@ module "firewall" {
 }
 
 module "vm" {
-  source = "./modules/vm"
+  source = "../../modules/vm"
 
   static_nat_ip = google_compute_address.static_ip.address
   network = var.network
@@ -30,7 +23,7 @@ module "vm" {
 }
 
 module "policy" {
-  source = "./modules/policy"
+  source = "../../modules/policy"
   name = "${var.vm_name}-off-hours"
   region = var.region
   time_zone = "Europe/Zurich"
