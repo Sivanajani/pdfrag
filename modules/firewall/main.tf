@@ -1,13 +1,13 @@
 resource "google_compute_firewall" "web" {
-  name = "${var.name_prefix}-allow-web"
+  name = "${var.name-prefix}-allow-web"
   network = var.network
 
   allow {
-    protocol = "tcp"
-    ports = ["80", "443"]
+    protocol = var.allowed-protocol
+    ports = var.allowed-ports
   }
 
-  direction = "INGRESS"
-  source_ranges = ["0.0.0.0/0"]
-  target_tags = var.target_tags
+  direction = var.firewall-direction
+  source_ranges = var.firewall-source-range
+  target_tags = var.target-tags
 }

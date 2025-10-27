@@ -1,14 +1,31 @@
 variable "network" {
   type = string
-  description = "VPC name or self_link (e.g., 'default')"
 }
 
-variable "target_tags" {
+variable "target-tags" {
   type = list(string)
-  description = "Network tags to apply firewall rules to (must match VM tags)"
 }
 
-variable "name_prefix" {
+variable "name-prefix" {
   type = string
-  description = "Prefix for firewall rule names"
+}
+
+variable "allowed-protocol" {
+  type = string
+  default = "tcp"
+}
+
+variable "allowed-ports" {
+  type = list(string)
+  default = ["80", "443"]
+}
+
+variable "firewall-direction" {
+  type = string
+  default = "INGRESS"
+}
+
+variable "firewall-source-range" {
+  type = list(string)
+  default =  ["0.0.0.0/0"]
 }

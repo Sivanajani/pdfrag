@@ -1,44 +1,43 @@
 locals {
   # Network tags to apply firewall rules to (must match VM tags)
-  target_tags = ["${var.vm_name}-web"]
+  target-tags = ["${var.vm-name}-web"]
+  policy-name = "${var.vm-name}-off-hours"
 }
 
 module "firewall" {
   source = "../../modules/firewall"
 
   network = var.network
-  target_tags = local.target_tags
-  name_prefix = var.vm_name
+  target-tags = local.target-tags
+  name-prefix = var.vm-name
 }
 
 module "vm" {
   source = "../../modules/vm"
 
-  static_nat_ip = google_compute_address.static_ip.address
+  vm-name = var.vm-name
+  static-nat-ip = google_compute_address.static_ip.address
   network = var.network
-  region = var.region
-  project_id = var.project_id
-  zone = var.zone
-  target_tags = local.target_tags
+  target-tags = local.target-tags
 }
 
 module "policy" {
   source = "../../modules/policy"
-  name = "${var.vm_name}-off-hours"
+  name = local.policy-name
   region = var.region
-  time_zone = "Europe/Zurich"
-  start_cron = "0 6 * * *"
-  stop_cron = "00 20 * * *"
+  time-zone = var.time-zone
+  start-cron = var.start-cron
+  stop-cron = var.stop-cron
 }
 
 resource "google_compute_address" "static_ip" {
-  name   = var.static_ip_name
+  name   = var.static-ip-name
   region = var.region
 }
 
 resource "google_compute_resource_policy_attachment" "off_hours_attach" {
   name     = module.policy.name
-  project  = var.project_id
+  project  = var.project-id
   zone     = var.zone
   instance = module.vm.name
 }

@@ -1,29 +1,29 @@
 resource "google_compute_instance" "vm" {
-  name = var.vm_name
-  machine_type = var.machine_type
-  tags = var.target_tags
+  name = var.vm-name
+  machine_type = var.machine-type
+  tags = var.target-tags
 
   boot_disk {
     initialize_params {
-      image = var.os_image
-      size = var.disk_size_gb
-      type = var.disk_type
+      image = var.os-image
+      size = var.disk-size-gb
+      type = var.disk-type
     }
   }
 
   network_interface {
-    network = "default"
+    network = var.network
 
     access_config {
-      nat_ip = var.static_nat_ip
+      nat_ip = var.static-nat-ip
     }
   }
 
   metadata = {
     enable-oslogin = "TRUE"
     user-data = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-      image = var.container_image
-      http_port  = var.container_http_port
+      image = var.container-image
+      http_port  = var.container-http-port
     })
   }
 }

@@ -6,14 +6,14 @@ variable "region" {
   type = string
 }
 
-variable "time_zone" {
+variable "time-zone" {
   type = string
 }
 
-variable "start_cron" {
+variable "start-cron" {
   type = string
 }
 
-variable "stop_cron" {
+variable "stop-cron" {
   type = string
 }
