@@ -1,0 +1,61 @@
+/* Basis: volle Höhe, sauberes Rendering */
+html, body, #root {
+  height: 100%;
+}
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body {
+  font-size: 16px;            /* alles wirkt sofort größer */
+  line-height: 1.5;
+}
+
+/* Design-Tokens für Abstände/Radien (optional) */
+:root {
+  --space: 8px;
+  --radius: 16px;
+}
+
+/* Seite & Sektionen */
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.app-container {
+  padding-top: calc(var(--space) * 4);
+  padding-bottom: calc(var(--space) * 4);
+  max-width: 1280px;          /* „lg“/„xl“-artig, kannst du auf 1440px erhöhen */
+  margin-inline: auto;
+  width: 100%;
+}
+.hero {
+  border: 1px solid var(--mui-palette-divider, rgba(255,255,255,.12));
+  border-radius: var(--radius);
+  padding: calc(var(--space) * 4);
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+}
+.files-grid {
+  display: grid;
+  gap: calc(var(--space) * 2.5);
+}
+@media (min-width: 600px) {
+  .files-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 900px) {
+  .files-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1200px) {
+  .files-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Footer */
+.app-footer {
+  border-top: 1px solid var(--mui-palette-divider, rgba(0,0,0,.12));
+  padding: calc(var(--space) * 2) 0;
+  font-size: 12px;
+  opacity: .7;
+}
