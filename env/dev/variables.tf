@@ -43,3 +43,14 @@ variable "static-ip-address" {
   default = "34.65.97.194"
   description = "need to be created manually in the same region as the VM"
 }
+
+variable "notify-email" {
+  type = string
+  default = "sivanajani@gmail.com"
+}
+
+variable "billing-account" {
+  type = string
+  default = "014E4F-539B22-915166"
+  description = "must be in the format XXXXXX-XXXXXX-XXXXXX and filled manually" //TODO must be given from outside
+}

@@ -23,11 +23,20 @@ module "vm" {
 
 module "policy" {
   source = "../../modules/policy"
+
   name = local.policy-name
   region = var.region
   time-zone = var.time-zone
   start-cron = var.start-cron
   stop-cron = var.stop-cron
+}
+
+module "billing" {
+  source = "../../modules/billing"
+
+  project-id = var.project-id
+  billing-account = var.billing-account
+  notify-email = var.notify-email
 }
 
 resource "google_compute_resource_policy_attachment" "off_hours_attach" {
