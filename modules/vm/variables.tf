@@ -17,7 +17,7 @@ variable "vm-name" {
 
 variable "machine-type" {
   type = string
-  default = "f1-micro"
+  default = "e2-medium"
 }
 
 variable "os-image" {
@@ -33,14 +33,4 @@ variable "disk-size-gb" {
 variable "disk-type" {
   type = string
   default = "pd-standard"
-}
-
-variable "container-image" {
-  type = string
-  default = "nginx:alpine"
-}
-
-variable "container-http-port" {
-  type = number
-  default = 80
 }

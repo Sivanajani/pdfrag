@@ -17,7 +17,7 @@ variable "allowed-protocol" {
 
 variable "allowed-ports" {
   type = list(string)
-  default = ["80", "443"]
+  default = ["80", "443", "8000", "5173"]
 }
 
 variable "firewall-direction" {

@@ -22,8 +22,9 @@ resource "google_compute_instance" "vm" {
   metadata = {
     enable-oslogin = "TRUE"
     user-data = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
-      image = var.container-image
-      http_port  = var.container-http-port
+      repo_url = "https://github.com/Sivanajani/pdfrag.git"
+      app_dir = "/opt/app"
+      project_name = "pdfrag"
     })
   }
 }
