@@ -33,6 +33,10 @@ module "policy" {
 resource "google_compute_address" "static_ip" {
   name   = var.static-ip-name
   region = var.region
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_compute_resource_policy_attachment" "off_hours_attach" {
