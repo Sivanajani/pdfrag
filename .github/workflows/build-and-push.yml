@@ -15,7 +15,7 @@ jobs:
     env:
       PROJECT_ID: project-trial-420614
       REGION: europe-west6
-      REPO: rag
+      REPO: pdfrag
       VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
 
     strategy:
@@ -67,13 +67,13 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/ragpdf-${{ matrix.image_suffix }}:${{ env.VERSION }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/ragpdf-${{ matrix.image_suffix }}:latest
-          cache-from: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/ragpdf-${{ matrix.image_suffix }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/ragpdf-${{ matrix.image_suffix }}:buildcache,mode=max
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:${{ env.VERSION }}
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:latest
+          cache-from: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:buildcache,mode=max
           provenance: true
           sbom: true
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.title=ragpdf-${{ matrix.image_suffix }}
+            org.opencontainers.image.title=${{ env.REPO }}-${{ matrix.image_suffix }}
