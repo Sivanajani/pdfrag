@@ -2,7 +2,7 @@ name: Build & Push FE/BE to Google Artifact Registry
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ] # need to change to main
     tags: [ "v*" ]
 
 jobs:
