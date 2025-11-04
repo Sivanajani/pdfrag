@@ -1,0 +1,58 @@
+name: Terraform Recreate DEV
+
+on:
+  workflow_run:
+    workflows: ["Build & Push FE/BE to Google Artifact Registry"]
+    types: [completed]
+    branches: [ "main" ]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  recreate:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # only run if build passed
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/env/dev
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout same commit as the build
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+
+      - name: Write credentials.json
+        run: |
+          cat > credentials.json <<'JSON'
+          ${{ secrets.SERVICE_ACCOUNT_KEY }}
+          JSON
+          chmod 600 credentials.json
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Destroy (ignore empty state)
+        run: |
+          set -e
+          terraform destroy -auto-approve -lock-timeout=5m || {
+            echo "Nothing to destroy (continuing)"; exit 0;
+          }
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -lock-timeout=5m

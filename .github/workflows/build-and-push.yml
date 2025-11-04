@@ -5,6 +5,10 @@ on:
     branches: [ "main" ]
     tags: [ "v*" ]
 
+concurrency:
+  group: build-main
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
