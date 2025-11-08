@@ -52,5 +52,5 @@ variable "notify-email" {
 variable "billing-account" {
   type = string
   default = "014E4F-539B22-915166"
-  description = "must be in the format XXXXXX-XXXXXX-XXXXXX and filled manually" //TODO must be given from outside
+  description = "must be in the format XXXXXX-XXXXXX-XXXXXX and filled manually"
 }
