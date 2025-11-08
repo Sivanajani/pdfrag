@@ -30,12 +30,12 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+          credentials_json: ${{ secrets.TERRAFORM_SERVICE_ACCOUNT_KEY }}
 
       - name: Write credentials.json
         run: |
           cat > credentials.json <<'JSON'
-          ${{ secrets.SERVICE_ACCOUNT_KEY }}
+          ${{ secrets.TERRAFORM_SERVICE_ACCOUNT_KEY }}
           JSON
           chmod 600 credentials.json
 
