@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardActions, Typography, IconButton, Stack } from '@mui/material'
+import { Card, CardContent, CardHeader, CardActions, Typography, IconButton } from '@mui/material'
 import DescriptionIcon from '@mui/icons-material/Description'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import type { UploadedFile } from '../types/files'

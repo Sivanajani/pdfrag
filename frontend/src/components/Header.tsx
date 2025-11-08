@@ -1,4 +1,4 @@
-import { AppBar, Toolbar, Typography, Stack, IconButton, Box, Paper } from '@mui/material'
+import { AppBar, Toolbar, Typography, Stack, Box, Paper } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import ThemeToggle from './ThemeToggle'
 

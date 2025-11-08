@@ -3,31 +3,41 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - ./backend/tmp:/app/tmp
+    container_name: rag-backend
+    expose:
+      - "8080"                    
     environment:
       - PYTHONUNBUFFERED=1
       - HOST=0.0.0.0
+      - PORT=8080
     restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-      - HOST=0.0.0.0
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
+      args:
+        - VITE_API_URL=/api
+    container_name: rag-frontend-build
+    command: ["sh", "-c", "npm run build"]
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+      - frontend-dist:/app/dist
+    restart: "no"                 
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: rag-nginx
     depends_on:
+      - frontend
       - backend
+    volumes:
+      - frontend-dist:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
     restart: unless-stopped
+
+
+volumes:
+  frontend-dist:
