@@ -1,6 +1,6 @@
 services:
   nginx-proxy:
-    image: nginxproxy/nginx-proxy:alpine
+    image: docker.io/nginxproxy/nginx-proxy:2678-alpine
     container_name: nginx-proxy
     restart: unless-stopped
     ports:
@@ -19,6 +19,8 @@ services:
     expose:
       - "8080"
     restart: unless-stopped
+    depends_on:
+      - nginx-proxy
 
   frontend:
     build:
@@ -32,3 +34,5 @@ services:
     expose:
       - "80"
     restart: unless-stopped
+    depends_on:
+      - nginx-proxy

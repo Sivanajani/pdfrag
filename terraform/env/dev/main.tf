@@ -19,7 +19,11 @@ module "vm" {
   static-nat-ip = var.static-ip-address
   network = var.network
   docker-tag = var.docker-tag
+  nginx-proxy-tag = var.nginx-proxy-tag
+  acme-companion-tag = var.acme-companion-tag
   target-tags = local.target-tags
+  project-name = var.project-name
+  project-id = var.project-id
 }
 
 module "policy" {

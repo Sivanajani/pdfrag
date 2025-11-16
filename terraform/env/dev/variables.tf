@@ -4,6 +4,18 @@ variable "docker-tag" {
   description = "give the docker image tag to be used it can be sha, git-version or latest"
 }
 
+variable "nginx-proxy-tag" {
+  type = string
+  default = "2678-alpine"
+  description = "give the docker image tag to be used"
+}
+
+variable "acme-companion-tag" {
+  type = string
+  default = "2.6.1"
+  description = "give the docker image tag to be used"
+}
+
 variable "project-id" {
   type = string
   default = "project-trial-420614"
@@ -31,7 +43,12 @@ variable "network" {
 
 variable "vm-name" {
   type = string
-  default = "rag"
+  default = "pdfrag"
+}
+
+variable "project-name" {
+  type = string
+  default = "pdfrag"
 }
 
 variable "start-cron" {

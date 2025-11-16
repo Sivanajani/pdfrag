@@ -2,11 +2,27 @@ variable "docker-tag" {
   type = string
 }
 
+variable "nginx-proxy-tag" {
+  type = string
+}
+
+variable "acme-companion-tag" {
+  type = string
+}
+
 variable "network" {
   type = string
 }
 
 variable "static-nat-ip" {
+  type = string
+}
+
+variable "project-name" {
+  type = string
+}
+
+variable "project-id" {
   type = string
 }
 
