@@ -1,4 +1,4 @@
-# RAG-MVP
+# RAG-MVP - LLM
 
 **Proof of Concept** für ein Retrieval-Augmented Generation (RAG)-System.  
 Ziel ist die Demonstration der automatisierten Verarbeitung medizinischer PDF-Dokumente und die semantische Zuordnung relevanter Begriffe.  
