@@ -8,8 +8,18 @@ import FileCard from './components/FileCard'
 import EmptyState from './components/EmptyState'
 import type { UploadedFile } from './types/files'
 import TextPreviewDialog from './components/TextPreviewDialog'
+import ExtractedDataPanel from './components/ExtractedDataPanel'
+import { llmExtractByDocId, type LlmExtractResponse } from './api';
+
 
 export default function App() {
+
+  const [llmResult, setLlmResult] = useState<LlmExtractResponse | null>(null);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmError, setLlmError] = useState<string | null>(null);
+
+
+
   const { mode, setMode } = useColorScheme()
   const theme = useMemo(() => makeTheme(mode), [mode])
   const [files, setFiles] = useState<UploadedFile[]>([])
@@ -35,14 +45,24 @@ export default function App() {
         />
 
         <Container maxWidth="lg" sx={{ flex: 1, py: 4 }}>
-          <UploadArea 
-            onFilesAdded={onFilesAdded} 
-            onTextExtracted={(payload) => {    
-              setPreviewTitle(payload.filename)
-              setPreviewText(payload.text)
-              setPreviewOpen(true) 
+          <UploadArea
+            onFilesAdded={onFilesAdded}
+            onTextExtracted={(payload) => {
+              setPreviewTitle(payload.filename);
+              setPreviewText(payload.text);
+              setPreviewOpen(true);
+
+              setLlmError(null);
+              setLlmResult(null);
+              setLlmLoading(true);
+
+              llmExtractByDocId(payload.id)
+                .then((res) => setLlmResult(res))
+                .catch((err: any) => setLlmError(err?.message ?? 'LLM Fehler'))
+                .finally(() => setLlmLoading(false));
             }}
           />
+
 
           <Box mt={3}>
             {files.length === 0 ? (
@@ -73,6 +93,12 @@ export default function App() {
               </Box>
             )}
           </Box>
+
+          <ExtractedDataPanel
+          loading={llmLoading}
+          error={llmError}
+          result={llmResult}
+          />
         </Container>
 
         <Box component="footer" sx={{ borderTop: 1, borderColor: 'divider', py: 2 }}>
