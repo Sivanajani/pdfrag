@@ -17,7 +17,7 @@ jobs:
       id-token: write
 
     env:
-      PROJECT_ID: project-trial-420614
+      PROJECT_ID: pdfrag-prod
       REGION: europe-west6
       REPO: pdfrag
       VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
