@@ -18,7 +18,7 @@ variable "acme-companion-tag" {
 
 variable "project-id" {
   type = string
-  default = "project-trial-420614"
+  default = "pdfrag-prod"
 }
 
 variable "region" {
@@ -63,8 +63,13 @@ variable "stop-cron" {
 
 variable "static-ip-address" {
   type = string
-  default = "34.65.97.194"
+  default = "34.158.21.231"
   description = "need to be created manually in the same region as the VM"
+}
+
+variable  "vm-service-account-email"  {
+  type = string
+  default = "terraform@pdfrag-prod.iam.gserviceaccount.com"
 }
 
 variable "notify-email" {
@@ -74,6 +79,6 @@ variable "notify-email" {
 
 variable "billing-account" {
   type = string
-  default = "014E4F-539B22-915166"
+  default = "013895-B47378-55CA41"
   description = "must be in the format XXXXXX-XXXXXX-XXXXXX and filled manually"
 }

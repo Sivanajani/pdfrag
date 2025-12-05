@@ -25,6 +25,7 @@ module "vm" {
   project-name = var.project-name
   project-id = var.project-id
   zone = var.zone
+  vm-service-account-email = var.vm-service-account-email
 }
 
 module "policy" {

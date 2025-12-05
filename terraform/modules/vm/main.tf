@@ -24,7 +24,7 @@ resource "google_compute_instance" "vm" {
   }
 
   service_account {
-    email  = "terraform@project-trial-420614.iam.gserviceaccount.com"
+    email  = var.vm-service-account-email
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
