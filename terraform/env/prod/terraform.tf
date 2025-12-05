@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket = "rag-tf-state-bucket"
+    bucket = "rag-prod-tf-state-bucket"
     prefix = "infra/dev"
   }
 

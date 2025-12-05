@@ -39,6 +39,10 @@ variable "zone" {
   type = string
 }
 
+variable  "vm-service-account-email"  {
+  type = string
+}
+
 variable "machine-type" {
   type = string
   default = "e2-medium"

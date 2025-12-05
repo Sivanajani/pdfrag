@@ -43,7 +43,8 @@ Required roles:
 - Artifact Registry Administrator
 - Service Account User
 
-Also add to Billing (Billing Account Administrator).
+Also add to Billing (Billing Account Administrator) but for this you need to go to Billing / Account management and add the service account to the billing account manually.
+(Also dont forget to change the billing account in the variables.tf file)
 
 ## CI/CD Service Account (Build & Push)
 Required roles:
@@ -57,6 +58,7 @@ Enable these in GCP:
 - Cloud Resource Manager API
 - Compute Engine API
 - Artifact Registry API
+- Billing Budget API
 
 # GCP Resources - create manually
 
