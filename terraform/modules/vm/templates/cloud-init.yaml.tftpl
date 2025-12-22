@@ -60,10 +60,10 @@ write_files:
           expose:
             - "80"
           environment:
-            - VIRTUAL_HOST=shaperag.com,www.shaperag.com
+            - VIRTUAL_HOST=${virtual_host}
             - VIRTUAL_PORT=80
-            - LETSENCRYPT_HOST=shaperag.com,www.shaperag.com
-            - LETSENCRYPT_EMAIL=sivanajani@swissntech.ch
+            - LETSENCRYPT_HOST=${virtual_host}
+            - LETSENCRYPT_EMAIL=${letsencrypt_email}
           restart: unless-stopped
 
       volumes:

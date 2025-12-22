@@ -1,0 +1,81 @@
+name: Build & Push FE/BE to Google Artifact Registry (DEV)
+
+on:
+  push:
+    branches: [ "dev" ]
+
+concurrency:
+  group: build-dev
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      PROJECT_ID: pdfrag-dev
+      REGION: europe-west6
+      REPO: pdfrag
+      VERSION: ${{ github.sha }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: frontend
+            context: ./frontend
+            dockerfile: ./frontend/prod/Dockerfile
+            image_suffix: frontend
+          - name: backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            image_suffix: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.CI_CD_SERVICE_ACCOUNT_KEY_DEV }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGION }}-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.CI_CD_SERVICE_ACCOUNT_KEY_DEV }}
+
+      - name: Build & Push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:${{ env.VERSION }}
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:latest
+          cache-from: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:buildcache-dev
+          cache-to: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.REPO }}-${{ matrix.image_suffix }}:buildcache-dev,mode=max
+          provenance: true
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=${{ env.REPO }}-${{ matrix.image_suffix }}

@@ -38,6 +38,8 @@ resource "google_compute_instance" "vm" {
       nginx_proxy_tag = var.nginx-proxy-tag
       acme_companion_tag = var.acme-companion-tag
       cert_device_name = var.docker-ssl-disk_name
+      virtual_host = var.virtual_host
+      letsencrypt_email = var.letsencrypt_email
     })
   }
 }
