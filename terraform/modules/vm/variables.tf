@@ -58,3 +58,15 @@ variable "docker-ssl-disk_name" {
   description = "Name of the manually created persistent disk for Docker/nginx ssl data"
   default     = "docker-ssl-data-disk"
 }
+
+variable "virtual_host" {
+  type = string
+  default = "shaperag.com,www.shaperag.com"
+  description = "The virtual host(s) for the frontend"
+}
+
+variable "letsencrypt_email" {
+  type = string
+  default = "sivanajani@swissntech.ch"
+  description = "Email for Let's Encrypt notifications"
+}
