@@ -26,7 +26,7 @@ module "vm" {
   project-id = var.project-id
   zone = var.zone
   vm-service-account-email = var.vm-service-account-email
-  virtual_host = "dev.pdfrag.com"
+  virtual_host = "dev.shaperag.com"
   letsencrypt_email = var.notify-email
 }
 
