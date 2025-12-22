@@ -2,7 +2,7 @@ name: Build & Push FE/BE to Google Artifact Registry (DEV)
 
 on:
   push:
-    branches: [ "rag-dev" ]
+    branches: [ "main" ]
 
 concurrency:
   group: build-dev
