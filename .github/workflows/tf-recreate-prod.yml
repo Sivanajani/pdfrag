@@ -1,6 +1,7 @@
 name: Terraform Recreate PROD
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: ["Build & Push FE/BE to Google Artifact Registry"]
     types: [completed]
