@@ -8,8 +8,6 @@ import type { UploadedFile } from "../types/files";
 import {
   uploadPdfWithText,
   type UploadWithTextResponse,
-  llmExtractRadiologyByDocId,
-  type RadiologyEvent,
 } from "../api";
 
 export default function UploadArea({
@@ -26,7 +24,6 @@ export default function UploadArea({
   const [success, setSuccess] = useState(false);
 
   const [docType, setDocType] = useState<"radiology" | "cardiology" | "sarcoma">("radiology");
-  const [radiologyPreview, setRadiologyPreview] = useState<RadiologyEvent[]>([]);
 
   const accept = useMemo(() => "application/pdf,.pdf", []);
   const filterPdfFiles = (files: File[]) =>
@@ -38,7 +35,6 @@ export default function UploadArea({
 
       setError(null);
       setSuccess(false);
-      setRadiologyPreview([]); 
 
       const files = filterPdfFiles(Array.from(fileList));
       if (files.length === 0) {
@@ -53,11 +49,6 @@ export default function UploadArea({
         const first = files[0];
         const res = await uploadPdfWithText(first, docType);
         onTextExtracted?.(res);
-
-        if (docType === "radiology") {
-          const out = await llmExtractRadiologyByDocId(res.id);
-          setRadiologyPreview(out.events); 
-        }
 
         setSuccess(true);
       } catch (e: any) {
@@ -168,73 +159,6 @@ export default function UploadArea({
           )}
         </Stack>
       </Paper>
-
-      {/* --- Radiology Vorschau Tabelle (Multi-row) --- */}
-      {docType === "radiology" && radiologyPreview.length > 0 && (
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Radiology Vorschau
-          </Typography>
-
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {[
-                    "Institution",
-                    "Patient ID (PID)",
-                    "Date of radiology exam",
-                    "Timing of imaging",
-                    "Type of imaging",
-                    "Type of radiology exam",
-                    "Interventionell Radiology",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        textAlign: "left",
-                        padding: "10px",
-                        borderBottom: "1px solid rgba(0,0,0,0.12)",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {radiologyPreview.map((row, idx) => (
-                  <tr key={`${row.patient_id}-${row.exam_date}-${idx}`}>
-                    <td style={{ padding: "10px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                      {row.institution_id}
-                    </td>
-                    <td style={{ padding: "10px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                      {row.patient_id}
-                    </td>
-                    <td style={{ padding: "10px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                      {row.exam_date}
-                    </td>
-                    <td style={{ padding: "10px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                      {row.imaging_timing ?? "-"}
-                    </td>
-                    <td style={{ padding: "10px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                      {row.imaging_scope ?? "-"}
-                    </td>
-                    <td style={{ padding: "10px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                      {row.exam_type ?? "-"}
-                    </td>
-                    <td style={{ padding: "10px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                      {row.interventional_method ?? "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Paper>
-      )}
     </Stack>
   );
 }
