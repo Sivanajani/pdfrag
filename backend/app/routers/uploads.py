@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, status, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Query, Form
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 from pathlib import Path
@@ -109,6 +109,7 @@ async def extract_text_direct(
 @router.post("/upload-with-text")
 async def upload_pdf_with_text(
     file: UploadFile = File(...),
+    doc_type: str = Form(...),  # <-- NEU
     extract: bool = Query(True, description="Wenn true, wird der Text sofort extrahiert."),
 ):
     """Nimmt eine PDF entgegen, speichert sie und gibt optional direkt den Text zurück."""
@@ -120,7 +121,7 @@ async def upload_pdf_with_text(
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    result = {"id": uid, "filename": file.filename}
+    result = {"id": uid, "filename": file.filename, "doc_type": doc_type}  
 
     if extract:
         try:
@@ -131,3 +132,4 @@ async def upload_pdf_with_text(
             raise HTTPException(status_code=500, detail=f"Fehler bei Textextraktion: {e}")
 
     return JSONResponse(status_code=status.HTTP_201_CREATED, content=result)
+

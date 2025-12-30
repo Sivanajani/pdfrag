@@ -107,3 +107,66 @@ def extract_structured_data_from_text(text: str) -> List[Dict[str, Any]]:
         )
 
     return normalized
+
+
+def extract_radiology_events_from_text(text: str) -> List[Dict[str, Any]]:
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    system_instructions = (
+        "Du bist ein medizinischer Extraktions-Assistent. "
+        "Extrahiere aus dem Text ALLE radiologischen Untersuchungen als Liste. "
+        "Gib NUR JSON zurück, kein Markdown."
+    )
+
+    json_spec = """
+Gib EIN JSON-ARRAY zurück (Liste), jedes Element ist ein RadiologyEvent:
+
+[
+  {
+    "institution_id": number | null,
+    "patient_id": number | null,
+    "exam_date": "YYYY-MM-DD" | null,
+    "imaging_timing": "Initial imaging" | "Follow-up imaging" | null,
+    "imaging_scope": "Local imaging" | "Systemic imaging" | null,
+    "exam_type": "conventional X-Ray" | "MRI" | "CT scan" | "Ultrasound (US)" | "PET-CT" | "PET-MRI" | "Scintigraphy" | "Other" | null,
+    "interventional_method": string | null
+  }
+]
+
+Regeln:
+- Erzeuge ein Element pro Untersuchung/Datum.
+- Wenn mehrere Untersuchungen genannt werden: alle aufnehmen.
+- Keine Erklärungen, nur JSON.
+"""
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nBerichtstext:\n{text}"
+
+    response = model.generate_content(prompt)
+    raw = (response.text or "").strip()
+
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    allowed_keys = {
+        "institution_id","patient_id","exam_date","imaging_timing",
+        "imaging_scope","exam_type","interventional_method",
+    }
+    cleaned = []
+    for item in data:
+        if isinstance(item, dict):
+            cleaned.append({k: item.get(k) for k in allowed_keys})
+    return cleaned

@@ -9,7 +9,13 @@ import EmptyState from './components/EmptyState'
 import type { UploadedFile } from './types/files'
 import TextPreviewDialog from './components/TextPreviewDialog'
 import ExtractedDataPanel from './components/ExtractedDataPanel'
-import { llmExtractByDocId, type LlmExtractResponse } from './api';
+import {
+  llmExtractByDocId,
+  type LlmExtractResponse,
+  llmExtractRadiologyByDocId,
+  type RadiologyEvent,
+} from "./api";
+
 
 
 export default function App() {
@@ -27,6 +33,9 @@ export default function App() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewTitle, setPreviewTitle] = useState<string | undefined>()
   const [previewText, setPreviewText] = useState<string | undefined>()
+
+  const [radEvents, setRadEvents] = useState<RadiologyEvent[] | null>(null);
+
 
   const onFilesAdded = (newFiles: UploadedFile[]) => {
     const key = (f: UploadedFile) => `${f.name}_${f.size}_${f.lastModified}`
@@ -55,11 +64,19 @@ export default function App() {
               setLlmError(null);
               setLlmResult(null);
               setLlmLoading(true);
+              setRadEvents(null);
 
               llmExtractByDocId(payload.id)
                 .then((res) => setLlmResult(res))
                 .catch((err: any) => setLlmError(err?.message ?? 'LLM Fehler'))
                 .finally(() => setLlmLoading(false));
+              
+              llmExtractRadiologyByDocId(payload.id)
+                .then((res) => setRadEvents(res.events))
+                .catch(() => {
+                // optional: ignorieren oder eigenes radError machen
+                setRadEvents(null);
+              });
             }}
           />
 
@@ -98,6 +115,7 @@ export default function App() {
           loading={llmLoading}
           error={llmError}
           result={llmResult}
+          radiologyEvents={radEvents}
           />
         </Container>
 
