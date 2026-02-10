@@ -121,7 +121,7 @@ async def upload_pdf_with_text(
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    result = {"id": uid, "filename": file.filename, "doc_type": doc_type}  
+    result = {"id": uid, "filename": file.filename, "doc_type": doc_type}
 
     if extract:
         try:

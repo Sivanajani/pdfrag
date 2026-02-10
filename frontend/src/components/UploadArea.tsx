@@ -1,13 +1,16 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Paper, Stack, Typography, Button, CircularProgress, Alert } from "@mui/material";
+import { Paper, Stack, Typography, Button, CircularProgress, Alert, FormControlLabel, Switch } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import type { UploadedFile } from "../types/files";
 
 import {
   uploadPdfWithText,
+  classifyDocTypeByDocId,
   type UploadWithTextResponse,
+  type DocType,
 } from "../api";
 
 export default function UploadArea({
@@ -23,7 +26,9 @@ export default function UploadArea({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const [docType, setDocType] = useState<"radiology" | "cardiology" | "sarcoma">("radiology");
+  const [docType, setDocType] = useState<DocType>("radiology");
+  const [autoDetect, setAutoDetect] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
 
   const accept = useMemo(() => "application/pdf,.pdf", []);
   const filterPdfFiles = (files: File[]) =>
@@ -47,18 +52,42 @@ export default function UploadArea({
         onFilesAdded(files);
 
         const first = files[0];
-        const res = await uploadPdfWithText(first, docType);
-        onTextExtracted?.(res);
+        let finalDocType = docType;
+
+        // Auto-Detect: Erst hochladen, dann klassifizieren
+        if (autoDetect) {
+          setIsDetecting(true);
+          const uploadRes = await uploadPdfWithText(first, "radiology"); // Temporary docType
+
+          try {
+            const classifyRes = await classifyDocTypeByDocId(uploadRes.id);
+            finalDocType = classifyRes.doc_type;
+            setDocType(finalDocType);
+          } catch (classifyError: any) {
+            console.error("Auto-Detect failed:", classifyError);
+            // Fallback to manual selection
+          } finally {
+            setIsDetecting(false);
+          }
+
+          // Erkannten doc_type ins Payload übernehmen
+          onTextExtracted?.({ ...uploadRes, doc_type: finalDocType });
+        } else {
+          // Manuelle Auswahl: Direkt mit ausgewähltem docType hochladen
+          const res = await uploadPdfWithText(first, finalDocType);
+          onTextExtracted?.(res);
+        }
 
         setSuccess(true);
       } catch (e: any) {
         setError(e?.message ?? "Unbekannter Fehler beim Upload");
       } finally {
         setIsUploading(false);
+        setIsDetecting(false);
         if (inputRef.current) inputRef.current.value = "";
       }
     },
-    [onFilesAdded, onTextExtracted, docType]
+    [onFilesAdded, onTextExtracted, docType, autoDetect]
   );
 
   return (
@@ -96,7 +125,32 @@ export default function UploadArea({
             Mehrere Dateien möglich. Es werden nur PDF-Dateien akzeptiert.
           </Typography>
 
-          <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
+          <FormControlLabel
+            control={
+              <Switch
+                checked={autoDetect}
+                onChange={(e) => setAutoDetect(e.target.checked)}
+                disabled={isUploading}
+              />
+            }
+            label={
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <AutoFixHighIcon fontSize="small" />
+                <Typography variant="body2">Auto-Detect Dokumenttyp</Typography>
+              </Stack>
+            }
+          />
+
+          {isDetecting && (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <CircularProgress size={16} />
+                <Typography variant="body2">Erkenne Dokumenttyp...</Typography>
+              </Stack>
+            </Alert>
+          )}
+
+          <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap" sx={{ gap: 1 }}>
             <Button
               size="small"
               variant={docType === "radiology" ? "contained" : "outlined"}
@@ -107,25 +161,56 @@ export default function UploadArea({
             </Button>
             <Button
               size="small"
-              variant={docType === "cardiology" ? "contained" : "outlined"}
-              onClick={() => setDocType("cardiology")}
+              variant={docType === "radiotherapy" ? "contained" : "outlined"}
+              onClick={() => setDocType("radiotherapy")}
               disabled={isUploading}
             >
-              Cardiology
+              Radiotherapy
             </Button>
             <Button
               size="small"
-              variant={docType === "sarcoma" ? "contained" : "outlined"}
-              onClick={() => setDocType("sarcoma")}
+              variant={docType === "pathology" ? "contained" : "outlined"}
+              onClick={() => setDocType("pathology")}
               disabled={isUploading}
             >
-              Sarcoma
+              Pathology
+            </Button>
+            <Button
+              size="small"
+              variant={docType === "surgery" ? "contained" : "outlined"}
+              onClick={() => setDocType("surgery")}
+              disabled={isUploading}
+            >
+              Surgery
+            </Button>
+            <Button
+              size="small"
+              variant={docType === "sarcoma_board" ? "contained" : "outlined"}
+              onClick={() => setDocType("sarcoma_board")}
+              disabled={isUploading}
+            >
+              Sarcoma Board
+            </Button>
+            <Button
+              size="small"
+              variant={docType === "systemic_therapy" ? "contained" : "outlined"}
+              onClick={() => setDocType("systemic_therapy")}
+              disabled={isUploading}
+            >
+              Systemic Therapy
             </Button>
           </Stack>
 
-          <Typography variant="caption" color="text.secondary">
-            Ausgewählt: <strong>{docType}</strong>
-          </Typography>
+          {!autoDetect && (
+            <Typography variant="caption" color="text.secondary">
+              Ausgewählt: <strong>{docType}</strong>
+            </Typography>
+          )}
+          {autoDetect && (
+            <Typography variant="caption" color="primary">
+              Auto-Detect aktiviert - Typ wird automatisch erkannt
+            </Typography>
+          )}
 
           <Stack direction="row" spacing={2} justifyContent="center" pt={1}>
             <Button

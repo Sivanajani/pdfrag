@@ -14,6 +14,16 @@ import {
   type LlmExtractResponse,
   llmExtractRadiologyByDocId,
   type RadiologyEvent,
+  llmExtractRadiotherapyByDocId,
+  type RadiotherapyEvent,
+  llmExtractPathologyByDocId,
+  type PathologyEvent,
+  llmExtractSurgeryByDocId,
+  type SurgeryEvent,
+  llmExtractSarcomaBoardByDocId,
+  type SarcomaBoardEvent,
+  llmExtractSystemicTherapyByDocId,
+  type SystemicTherapyEvent,
 } from "./api";
 
 
@@ -35,6 +45,11 @@ export default function App() {
   const [previewText, setPreviewText] = useState<string | undefined>()
 
   const [radEvents, setRadEvents] = useState<RadiologyEvent[] | null>(null);
+  const [radiotherapyEvents, setRadiotherapyEvents] = useState<RadiotherapyEvent[] | null>(null);
+  const [pathologyEvents, setPathologyEvents] = useState<PathologyEvent[] | null>(null);
+  const [surgeryEvents, setSurgeryEvents] = useState<SurgeryEvent[] | null>(null);
+  const [sarcomaBoardEvents, setSarcomaBoardEvents] = useState<SarcomaBoardEvent[] | null>(null);
+  const [systemicTherapyEvents, setSystemicTherapyEvents] = useState<SystemicTherapyEvent[] | null>(null);
 
 
   const onFilesAdded = (newFiles: UploadedFile[]) => {
@@ -64,19 +79,52 @@ export default function App() {
               setLlmError(null);
               setLlmResult(null);
               setLlmLoading(true);
-              setRadEvents(null);
 
+              // Reset alle Event-States
+              setRadEvents(null);
+              setRadiotherapyEvents(null);
+              setPathologyEvents(null);
+              setSurgeryEvents(null);
+              setSarcomaBoardEvents(null);
+              setSystemicTherapyEvents(null);
+
+              // Generic extraction (old system - deprecated)
               llmExtractByDocId(payload.id)
                 .then((res) => setLlmResult(res))
                 .catch((err: any) => setLlmError(err?.message ?? 'LLM Fehler'))
                 .finally(() => setLlmLoading(false));
-              
-              llmExtractRadiologyByDocId(payload.id)
-                .then((res) => setRadEvents(res.events))
-                .catch(() => {
-                // optional: ignorieren oder eigenes radError machen
-                setRadEvents(null);
-              });
+
+              // Document-type specific extraction
+              const docType = payload.doc_type || 'radiology';
+
+              if (docType === 'radiology') {
+                llmExtractRadiologyByDocId(payload.id)
+                  .then((res) => setRadEvents(res.events))
+                  .catch(() => setRadEvents(null));
+              } else if (docType === 'radiotherapy') {
+                llmExtractRadiotherapyByDocId(payload.id)
+                  .then((res) => setRadiotherapyEvents(res.events))
+                  .catch(() => setRadiotherapyEvents(null));
+              } else if (docType === 'pathology') {
+                llmExtractPathologyByDocId(payload.id)
+                  .then((res) => setPathologyEvents(res.events))
+                  .catch(() => setPathologyEvents(null));
+              } else if (docType === 'surgery') {
+                llmExtractSurgeryByDocId(payload.id)
+                  .then((res) => setSurgeryEvents(res.events))
+                  .catch(() => setSurgeryEvents(null));
+              } else if (docType === 'sarcoma_board') {
+                llmExtractSarcomaBoardByDocId(payload.id)
+                  .then((res) => setSarcomaBoardEvents(res.events))
+                  .catch(() => setSarcomaBoardEvents(null));
+              } else if (docType === 'systemic_therapy') {
+                llmExtractSystemicTherapyByDocId(payload.id)
+                  .then((res) => setSystemicTherapyEvents(res.events))
+                  .catch(() => setSystemicTherapyEvents(null));
+              } else {
+                console.warn(`Unknown document type: ${docType}`);
+                setLlmError(`Unbekannter Dokumenttyp: "${docType}"`);
+              }
             }}
           />
 
@@ -116,6 +164,11 @@ export default function App() {
           error={llmError}
           result={llmResult}
           radiologyEvents={radEvents}
+          radiotherapyEvents={radiotherapyEvents}
+          pathologyEvents={pathologyEvents}
+          surgeryEvents={surgeryEvents}
+          sarcomaBoardEvents={sarcomaBoardEvents}
+          systemicTherapyEvents={systemicTherapyEvents}
           />
         </Container>
 
