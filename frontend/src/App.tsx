@@ -10,8 +10,6 @@ import type { UploadedFile } from './types/files'
 import TextPreviewDialog from './components/TextPreviewDialog'
 import ExtractedDataPanel from './components/ExtractedDataPanel'
 import {
-  llmExtractByDocId,
-  type LlmExtractResponse,
   llmExtractRadiologyByDocId,
   type RadiologyEvent,
   llmExtractRadiotherapyByDocId,
@@ -30,7 +28,6 @@ import {
 
 export default function App() {
 
-  const [llmResult, setLlmResult] = useState<LlmExtractResponse | null>(null);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmError, setLlmError] = useState<string | null>(null);
 
@@ -77,53 +74,56 @@ export default function App() {
               setPreviewOpen(true);
 
               setLlmError(null);
-              setLlmResult(null);
               setLlmLoading(true);
 
-              // Reset alle Event-States
-              setRadEvents(null);
-              setRadiotherapyEvents(null);
-              setPathologyEvents(null);
-              setSurgeryEvents(null);
-              setSarcomaBoardEvents(null);
-              setSystemicTherapyEvents(null);
+              const shouldAppend = payload.append === true;
 
-              // Generic extraction (old system - deprecated)
-              llmExtractByDocId(payload.id)
-                .then((res) => setLlmResult(res))
-                .catch((err: any) => setLlmError(err?.message ?? 'LLM Fehler'))
-                .finally(() => setLlmLoading(false));
+              // Bei erster Datei: Reset alle Event-States
+              if (!shouldAppend) {
+                setRadEvents(null);
+                setRadiotherapyEvents(null);
+                setPathologyEvents(null);
+                setSurgeryEvents(null);
+                setSarcomaBoardEvents(null);
+                setSystemicTherapyEvents(null);
+              }
 
               // Document-type specific extraction
               const docType = payload.doc_type || 'radiology';
 
               if (docType === 'radiology') {
                 llmExtractRadiologyByDocId(payload.id)
-                  .then((res) => setRadEvents(res.events))
-                  .catch(() => setRadEvents(null));
+                  .then((res) => setRadEvents(prev => [...(prev || []), ...res.events]))
+                  .catch((err: any) => setLlmError(err?.message ?? 'Extraktion fehlgeschlagen'))
+                  .finally(() => setLlmLoading(false));
               } else if (docType === 'radiotherapy') {
                 llmExtractRadiotherapyByDocId(payload.id)
-                  .then((res) => setRadiotherapyEvents(res.events))
-                  .catch(() => setRadiotherapyEvents(null));
+                  .then((res) => setRadiotherapyEvents(prev => [...(prev || []), ...res.events]))
+                  .catch((err: any) => setLlmError(err?.message ?? 'Extraktion fehlgeschlagen'))
+                  .finally(() => setLlmLoading(false));
               } else if (docType === 'pathology') {
                 llmExtractPathologyByDocId(payload.id)
-                  .then((res) => setPathologyEvents(res.events))
-                  .catch(() => setPathologyEvents(null));
+                  .then((res) => setPathologyEvents(prev => [...(prev || []), ...res.events]))
+                  .catch((err: any) => setLlmError(err?.message ?? 'Extraktion fehlgeschlagen'))
+                  .finally(() => setLlmLoading(false));
               } else if (docType === 'surgery') {
                 llmExtractSurgeryByDocId(payload.id)
-                  .then((res) => setSurgeryEvents(res.events))
-                  .catch(() => setSurgeryEvents(null));
+                  .then((res) => setSurgeryEvents(prev => [...(prev || []), ...res.events]))
+                  .catch((err: any) => setLlmError(err?.message ?? 'Extraktion fehlgeschlagen'))
+                  .finally(() => setLlmLoading(false));
               } else if (docType === 'sarcoma_board') {
                 llmExtractSarcomaBoardByDocId(payload.id)
-                  .then((res) => setSarcomaBoardEvents(res.events))
-                  .catch(() => setSarcomaBoardEvents(null));
+                  .then((res) => setSarcomaBoardEvents(prev => [...(prev || []), ...res.events]))
+                  .catch((err: any) => setLlmError(err?.message ?? 'Extraktion fehlgeschlagen'))
+                  .finally(() => setLlmLoading(false));
               } else if (docType === 'systemic_therapy') {
                 llmExtractSystemicTherapyByDocId(payload.id)
-                  .then((res) => setSystemicTherapyEvents(res.events))
-                  .catch(() => setSystemicTherapyEvents(null));
+                  .then((res) => setSystemicTherapyEvents(prev => [...(prev || []), ...res.events]))
+                  .catch((err: any) => setLlmError(err?.message ?? 'Extraktion fehlgeschlagen'))
+                  .finally(() => setLlmLoading(false));
               } else {
-                console.warn(`Unknown document type: ${docType}`);
                 setLlmError(`Unbekannter Dokumenttyp: "${docType}"`);
+                setLlmLoading(false);
               }
             }}
           />
@@ -162,7 +162,6 @@ export default function App() {
           <ExtractedDataPanel
           loading={llmLoading}
           error={llmError}
-          result={llmResult}
           radiologyEvents={radEvents}
           radiotherapyEvents={radiotherapyEvents}
           pathologyEvents={pathologyEvents}

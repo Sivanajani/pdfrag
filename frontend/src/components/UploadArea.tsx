@@ -23,6 +23,7 @@ export default function UploadArea({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -40,6 +41,7 @@ export default function UploadArea({
 
       setError(null);
       setSuccess(false);
+      setUploadProgress(null);
 
       const files = filterPdfFiles(Array.from(fileList));
       if (files.length === 0) {
@@ -51,39 +53,43 @@ export default function UploadArea({
         setIsUploading(true);
         onFilesAdded(files);
 
-        const first = files[0];
-        let finalDocType = docType;
+        // Alle Dateien sequentiell verarbeiten
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const isFirst = i === 0;
+          setUploadProgress(`Verarbeite ${i + 1} / ${files.length}: ${file.name}`);
 
-        // Auto-Detect: Erst hochladen, dann klassifizieren
-        if (autoDetect) {
-          setIsDetecting(true);
-          const uploadRes = await uploadPdfWithText(first, "radiology"); // Temporary docType
+          let finalDocType = docType;
 
-          try {
-            const classifyRes = await classifyDocTypeByDocId(uploadRes.id);
-            finalDocType = classifyRes.doc_type;
-            setDocType(finalDocType);
-          } catch (classifyError: any) {
-            console.error("Auto-Detect failed:", classifyError);
-            // Fallback to manual selection
-          } finally {
-            setIsDetecting(false);
+          if (autoDetect) {
+            setIsDetecting(true);
+            const uploadRes = await uploadPdfWithText(file, "radiology");
+
+            try {
+              const classifyRes = await classifyDocTypeByDocId(uploadRes.id);
+              finalDocType = classifyRes.doc_type;
+              if (isFirst) setDocType(finalDocType);
+            } catch (classifyError: any) {
+              console.error("Auto-Detect failed:", classifyError);
+            } finally {
+              setIsDetecting(false);
+            }
+
+            onTextExtracted?.({ ...uploadRes, doc_type: finalDocType, append: !isFirst });
+          } else {
+            const res = await uploadPdfWithText(file, finalDocType);
+            onTextExtracted?.({ ...res, append: !isFirst });
           }
-
-          // Erkannten doc_type ins Payload übernehmen
-          onTextExtracted?.({ ...uploadRes, doc_type: finalDocType });
-        } else {
-          // Manuelle Auswahl: Direkt mit ausgewähltem docType hochladen
-          const res = await uploadPdfWithText(first, finalDocType);
-          onTextExtracted?.(res);
         }
 
         setSuccess(true);
+        setUploadProgress(null);
       } catch (e: any) {
         setError(e?.message ?? "Unbekannter Fehler beim Upload");
       } finally {
         setIsUploading(false);
         setIsDetecting(false);
+        setUploadProgress(null);
         if (inputRef.current) inputRef.current.value = "";
       }
     },
@@ -219,7 +225,7 @@ export default function UploadArea({
               onClick={() => inputRef.current?.click()}
               disabled={isUploading}
             >
-              {isUploading ? "Hochladen…" : "Dateien auswählen"}
+              {isUploading ? (uploadProgress ?? "Hochladen…") : "Dateien auswählen"}
             </Button>
 
             <input

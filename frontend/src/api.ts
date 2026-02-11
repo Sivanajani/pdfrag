@@ -6,6 +6,8 @@ export type UploadWithTextResponse = {
   doc_type?: string;
   text?: string;
   length?: number;
+  /** true = append results to existing table, false = reset & start fresh */
+  append?: boolean;
 };
 
 export type DocType =
