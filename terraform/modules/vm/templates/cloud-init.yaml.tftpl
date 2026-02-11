@@ -5,6 +5,7 @@ packages:
   - docker-compose-v2
   - curl
   - ca-certificates
+  - google-cloud-cli
 
 write_files:
   - path: ${app_dir}/${project_name}/docker-compose.yml
@@ -51,6 +52,7 @@ write_files:
             PYTHONUNBUFFERED: "1"
             HOST: "0.0.0.0"
             PORT: "8080"
+            GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
           expose:
             - "8080"
           restart: unless-stopped
@@ -110,6 +112,7 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=${app_dir}/${project_name}
       Environment=DOCKER_CONFIG=/run/pdfrag-docker
+      EnvironmentFile=/etc/pdfrag/env
       ExecStartPre=/usr/local/bin/artifact-registry-login
       ExecStartPre=/usr/bin/docker compose pull
       ExecStart=/usr/bin/docker compose up -d
@@ -138,6 +141,14 @@ runcmd:
   - mkdir -p /srv/${cert_device_name}
   - chown -R root:root /srv/${cert_device_name}
   - systemctl enable --now docker
+  - mkdir -p /etc/pdfrag
+  - |
+      GOOGLE_API_KEY="$(gcloud secrets versions access latest --secret='${gemini_secret_name}' --project='${project_id}')"
+      test -n "$GOOGLE_API_KEY"
+      printf "GOOGLE_API_KEY=%s\n" "$GOOGLE_API_KEY" > /etc/pdfrag/env
+      chmod 600 /etc/pdfrag/env
+      chown root:root /etc/pdfrag/env
+
   - systemctl daemon-reload
   - systemctl enable --now web.service
 

@@ -40,6 +40,7 @@ resource "google_compute_instance" "vm" {
       cert_device_name = var.docker-ssl-disk_name
       virtual_host = var.virtual_host
       letsencrypt_email = var.letsencrypt_email
+      gemini_secret_name = "gemini_api_key_dev"
     })
   }
 }
