@@ -39,6 +39,9 @@ resource "google_compute_instance" "vm" {
       acme_companion_tag = var.acme-companion-tag
       cert_device_name = var.docker-ssl-disk_name
       gemini_secret_name = "gemini_api_key_dev"
+      frontend_virtual_host     = var.frontend_virtual_host
+      frontend_letsencrypt_host = var.frontend_letsencrypt_host
+      letsencrypt_email         = var.letsencrypt_email
     })
   }
 }
