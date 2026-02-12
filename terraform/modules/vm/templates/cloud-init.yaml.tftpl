@@ -5,6 +5,7 @@ packages:
   - docker-compose-v2
   - curl
   - ca-certificates
+  - google-cloud-cli
 
 write_files:
   - path: ${app_dir}/${project_name}/docker-compose.yml
@@ -47,6 +48,8 @@ write_files:
 
         backend:
           image: europe-west6-docker.pkg.dev/${project_id}/${project_name}/${project_name}-backend:${image_tag}
+          env_file:
+            - /etc/pdfrag/env
           environment:
             PYTHONUNBUFFERED: "1"
             HOST: "0.0.0.0"
@@ -60,9 +63,9 @@ write_files:
           expose:
             - "80"
           environment:
-            - VIRTUAL_HOST=${virtual_host}
+            - VIRTUAL_HOST=${frontend_virtual_host}
             - VIRTUAL_PORT=80
-            - LETSENCRYPT_HOST=${virtual_host}
+            - LETSENCRYPT_HOST=${frontend_letsencrypt_host}
             - LETSENCRYPT_EMAIL=${letsencrypt_email}
           restart: unless-stopped
 
@@ -110,6 +113,7 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=${app_dir}/${project_name}
       Environment=DOCKER_CONFIG=/run/pdfrag-docker
+      EnvironmentFile=/etc/pdfrag/env
       ExecStartPre=/usr/local/bin/artifact-registry-login
       ExecStartPre=/usr/bin/docker compose pull
       ExecStart=/usr/bin/docker compose up -d
@@ -138,8 +142,17 @@ runcmd:
   - mkdir -p /srv/${cert_device_name}
   - chown -R root:root /srv/${cert_device_name}
   - systemctl enable --now docker
+  - mkdir -p /etc/pdfrag
+  - |
+      GOOGLE_API_KEY="$(gcloud secrets versions access latest --secret='${gemini_secret_name}' --project='${project_id}')"
+      test -n "$GOOGLE_API_KEY"
+      printf "GOOGLE_API_KEY=%s\n" "$GOOGLE_API_KEY" > /etc/pdfrag/env
+      chmod 600 /etc/pdfrag/env
+      chown root:root /etc/pdfrag/env
+
   - systemctl daemon-reload
   - systemctl enable --now web.service
+
 
 final_message: |
   Cloud init finished. The application should be running shortly.

@@ -59,14 +59,18 @@ variable "docker-ssl-disk_name" {
   default     = "docker-ssl-data-disk"
 }
 
-variable "virtual_host" {
+variable "frontend_virtual_host" {
   type = string
-  default = "shaperag.com,www.shaperag.com"
-  description = "The virtual host(s) for the frontend"
+}
+
+variable "frontend_letsencrypt_host" {
+  type = string
 }
 
 variable "letsencrypt_email" {
   type = string
-  default = "sivanajani@swissntech.ch"
-  description = "Email for Let's Encrypt notifications"
+}
+
+variable "gemini_secret_name" {
+  type = string
 }

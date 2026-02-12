@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.routers.uploads import router as uploads_router
+from app.routers.llm import router as llm_router 
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
@@ -30,3 +31,4 @@ def healthz():
     return {"status": "ok"}
 
 app.include_router(uploads_router, prefix="/api")
+app.include_router(llm_router, prefix="/api")

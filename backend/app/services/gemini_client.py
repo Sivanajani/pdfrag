@@ -1,0 +1,1173 @@
+import os
+import json
+from typing import List, Dict, Any
+
+import google.generativeai as genai
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+if not GOOGLE_API_KEY:
+    raise RuntimeError(
+        "GOOGLE_API_KEY ist nicht gesetzt. Bitte als Environment-Variable konfigurieren."
+    )
+
+genai.configure(api_key=GOOGLE_API_KEY)
+
+MODEL_NAME = "gemini-flash-latest"
+
+
+def extract_befund_section(text: str) -> str:
+    """
+    Extrahiert den 'Befund'-Abschnitt aus einem medizinischen Bericht.
+
+    Sucht nach typischen Überschriften wie:
+    - "Befund:", "BEFUND:", "Befund :"
+    - "Makroskopischer Befund:", "Mikroskopischer Befund:"
+    - "Histologischer Befund:"
+
+    Endet bei der nächsten Überschrift wie:
+    - "Beurteilung:", "Diagnose:", "Zusammenfassung:", "Kommentar:", etc.
+
+    Falls kein Befund-Abschnitt gefunden wird, wird der gesamte Text zurückgegeben.
+    """
+    import re
+
+    if not text or text.strip() == "":
+        return text
+
+    # Muster für den Beginn des Befund-Abschnitts
+    befund_start_patterns = [
+        r'(?i)(?:^|\n)\s*(?:makroskopischer\s+)?(?:mikroskopischer\s+)?(?:histologischer\s+)?befund\s*[:\-]?\s*\n',
+        r'(?i)(?:^|\n)\s*BEFUND\s*[:\-]?\s*\n',
+        r'(?i)(?:^|\n)\s*Befund\s*[:\-]\s*',
+    ]
+
+    # Muster für das Ende des Befund-Abschnitts (nächste Überschrift)
+    end_patterns = [
+        r'(?i)(?:^|\n)\s*(?:Beurteilung|Zusammenfassung|Diagnose|Kommentar|Empfehlung|Procedere|Bewertung|Schlussfolgerung|Interpretation|Stellungnahme)\s*[:\-]',
+    ]
+
+    # Versuche Befund-Abschnitt zu finden
+    befund_start = None
+    for pattern in befund_start_patterns:
+        match = re.search(pattern, text)
+        if match:
+            befund_start = match.end()
+            break
+
+    if befund_start is None:
+        # Kein Befund-Abschnitt gefunden → ganzen Text zurückgeben
+        return text
+
+    # Suche nach dem Ende des Befund-Abschnitts
+    remaining_text = text[befund_start:]
+    befund_end = len(remaining_text)
+
+    for pattern in end_patterns:
+        match = re.search(pattern, remaining_text)
+        if match:
+            befund_end = min(befund_end, match.start())
+
+    befund_text = remaining_text[:befund_end].strip()
+
+    # Falls extrahierter Befund sehr kurz ist (< 50 Zeichen), verwende gesamten Text
+    if len(befund_text) < 50:
+        return text
+
+    return befund_text
+
+
+def extract_structured_data_from_text(text: str) -> List[Dict[str, Any]]:
+    """
+    Ruft Gemini auf und bittet um strukturierte Extraktion.
+    Rückgabe: Liste von Dicts, z.B.
+    [
+      {
+        "source_type": "measurement",
+        "body_part": "Oberarm",
+        "concept": "tumor_size",
+        "value": 50,
+        "unit": "mm",
+        "note": "… ggf. Zusatzkontext …"
+      },
+      ...
+    ]
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    system_instructions = (
+        "Du bist ein medizinischer Extraktions-Assistent. "
+        "Du bekommst den Text eines medizinischen Berichts (z.B. PDF-Text). "
+        "Extrahiere alle relevanten Messwerte und Befunde wie Tumorgrößen, "
+        "Längenangaben, Volumen, etc. "
+        "Gib das Ergebnis NUR als gültiges JSON mit einer Liste von Objekten zurück. "
+        "Kein zusätzlicher Text, keine Erklärungen, nur JSON."
+    )
+    
+    json_spec = """
+    Antworte als JSON-Array von Objekten wie:
+    [
+      {
+        "source_type": "measurement" | "description" | "other",
+        "body_part": "Oberarm",
+        "concept": "tumor_size",
+        "value": 50,
+        "unit": "mm",
+        "note": "optionaler Textkontext oder Kommentar"
+      }
+    ]
+
+    Regeln:
+    - value ist eine Zahl, falls vorhanden (z.B. 50)
+    - unit sind Einheiten wie "mm", "cm", "%", "ml" etc., falls vorhanden
+    - body_part ist eine anatomische Region, falls erkennbar (z.B. 'Oberarm')
+    - concept ist ein kurzer, englischer Identifier wie 'tumor_size', 'length', 'weight'
+    - Wenn du nichts Sinnvolles extrahieren kannst, gib ein leeres Array [] zurück.
+    """
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nBerichtstext:\n```{text}```"
+
+    response = model.generate_content(prompt)
+
+    raw = response.text or ""
+
+    
+    raw = raw.strip()
+    
+    if raw.startswith("```"):
+    
+        raw = raw.strip("`")
+    
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    normalized: List[Dict[str, Any]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        normalized.append(
+            {
+                "source_type": item.get("source_type"),
+                "body_part": item.get("body_part"),
+                "concept": item.get("concept"),
+                "value": item.get("value"),
+                "unit": item.get("unit"),
+                "note": item.get("note"),
+            }
+        )
+
+    return normalized
+
+
+def extract_radiology_events_from_text(text: str) -> List[Dict[str, Any]]:
+    """
+    Extrahiert VOLLSTÄNDIGE RadiologyEvent-Daten aus einem Radiology-Bericht.
+    Verwendet BEFUND + BEURTEILUNG Abschnitte.
+    Unterstützt alle 45+ Felder aus dem RadiologyEvent-Schema.
+    Kann mehrere Events pro Bericht zurückgeben (bei mehreren Läsionen/Regionen).
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    # Nur den Befund-Abschnitt extrahieren
+    text = extract_befund_section(text)
+
+    system_instructions = """Du bist ein spezialisierter medizinischer Extraktions-Assistent für RADIOLOGIE-Befunde.
+
+WICHTIG:
+1. Du bekommst NUR den BEFUND-Abschnitt eines Radiologie-Berichts.
+   Extrahiere ALLE relevanten Informationen aus diesem Abschnitt.
+
+2. Klinische Angaben, Fragestellung und andere Abschnitte wurden bereits entfernt.
+   Fokussiere dich auf die objektiven Beschreibungen: Größen, Lokalisationen, Befundtext.
+
+3. Multi-Event Logik:
+   - EINE Läsion in EINER Region → EIN Event
+   - MEHRERE Läsionen in VERSCHIEDENEN Regionen → MEHRERE Events
+   - Beispiel: Primärtumor Oberschenkel + Lungenmetastasen → 2 Events
+
+4. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+
+    json_spec = """
+Gib ein JSON-ARRAY zurück. Jedes Element ist ein vollständiges RadiologyEvent:
+
+[
+  {
+    // IDs (optional für LLM-Extraktion)
+    "institution_id": number | null,
+    "patient_id": number | null,
+
+    // PFLICHTFELD
+    "exam_date": "YYYY-MM-DD" (aus dem Bericht extrahieren, z.B. "2024-01-15"),
+
+    // Grundlegende Untersuchungs-Informationen
+    "exam_type": "conventional X-Ray" | "MRI" | "CT scan" | "Ultrasound (US)" | "PET-CT" | "PET-MRI" | "Scintigraphy" | "Other" | null,
+    "exam_type_comment": string | null,
+    "imaging_timing": "Initial imaging" | "Follow-up imaging" | null,
+    "imaging_type": "Local imaging" | "Systemic imaging" | null,
+
+    // Läsions-Informationen
+    "location_of_lesion": "Head and neck" | "Trunk" | "Chest" | "Abdomen" | "Pelvis" | "Upper extremity" | "Lower extremity" | "Retroperitoneum" | "Multiple locations" | "Other" | null,
+    "largest_lesion_size_in_mm": number | null,
+    "medium_lesion_size_in_mm": number | null,
+    "smallest_lesion_size_in_mm": number | null,
+
+    // Response-Kriterien (falls im Bericht erwähnt)
+    "recist_response": "CR (Complete Response)" | "PR (Partial Response)" | "SD (Stable Disease)" | "PD (Progressive Disease)" | "NE (Not Evaluable)" | null,
+    "choi_response": "CR (Complete Response)" | "PR (Partial Response)" | "SD (Stable Disease)" | "PD (Progressive Disease)" | null,
+    "irecist_response": "iCR (immune Complete Response)" | "iPR (immune Partial Response)" | "iSD (immune Stable Disease)" | "iPD (immune Progressive Disease)" | "iUPD (immune Unconfirmed PD)" | null,
+    "pet_response": "CMR (Complete Metabolic Response)" | "PMR (Partial Metabolic Response)" | "SMD (Stable Metabolic Disease)" | "PMD (Progressive Metabolic Disease)" | null,
+
+    // Lokale Erkrankung
+    "local_disease_status": "No disease" | "Measurable" | "Non-measurable" | "Unknown" | null,
+    "local_disease_measurable": "Yes" | "No" | "Unknown" | null,
+    "local_disease_report_largest_diameter": number | null,  // in mm
+    "local_disease_qualitative_mri_response": "Complete response" | "Partial response" | "Stable disease" | "Progressive disease" | null,
+    "local_disease_radiologist_confidence": number | null,  // 1-5
+    "local_disease_pet_metabolic_response": "CMR (Complete Metabolic Response)" | "PMR (Partial Metabolic Response)" | "SMD (Stable Metabolic Disease)" | "PMD (Progressive Metabolic Disease)" | null,
+
+    // Metastasen - Allgemein
+    "metastasis_presence": boolean | null,  // deprecated, aber noch unterstützt
+    "metastasis": "No metastasis" | "Metastasis present" | "Indeterminate" | "Unknown" | null,
+    "anatomic_location_of_metastasis": ["Lung", "Pleura", "Bone", "Liver", "Soft tissue", "Lymph node", "Brain", "Peritoneum", "Other"] | [],  // Array!
+
+    // Metastasen - Anzahl pro Lokalisation
+    "metastasis_location_lung_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_pleura_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_bone_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_liver_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_soft_tissue_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_lymph_node_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_brain_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_other_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+
+    // Metastasen - Messungen
+    "metastasis_target_lesion_count": number | null,
+    "metastasis_longest_diameter_mm": number | null,
+    "metastasis_indeterminate_category": "Probably benign" | "Indeterminate" | "Suspicious" | null,
+
+    // Vollständiger Befundtext
+    "radiology_report": string | null,  // Der komplette Text aus BEFUND + BEURTEILUNG
+    "report_date": "YYYY-MM-DD" | null  // Befunddatum (kann von exam_date abweichen)
+  }
+]
+
+WICHTIGE REGELN:
+
+1. **Datum-Extraktion**:
+   - Wenn Datum im Format "15.01.2024" → konvertiere zu "2024-01-15"
+   - Wenn mehrere Daten: exam_date ist das Untersuchungsdatum
+
+2. **Läsions-Größen**:
+   - Alle Größen in mm angeben
+   - "5 cm" → 50 mm
+   - "2,5 cm" → 25 mm
+
+3. **Metastasen**:
+   - "anatomic_location_of_metastasis" ist ein ARRAY (Liste)
+   - Wenn "pulmonale Metastasen" → ["Lung"]
+   - Wenn "ossäre und hepatische Metastasen" → ["Bone", "Liver"]
+   - Count-Felder: Wenn "multiple Lungenmetastasen" → "metastasis_location_lung_count": ">10" oder "Numerous"
+
+4. **Response-Kriterien**:
+   - Nur füllen wenn EXPLIZIT im Bericht genannt
+   - "komplette Remission" → "CR (Complete Response)"
+   - "partielle Remission" → "PR (Partial Response)"
+   - "stabile Erkrankung" → "SD (Stable Disease)"
+   - "Progress" → "PD (Progressive Disease)"
+
+5. **Befundtext**:
+   - "radiology_report": Kopiere BEFUND + BEURTEILUNG hierhin
+   - Maximal 10.000 Zeichen
+   - Format: "Befund: ... Beurteilung: ..."
+
+6. **Fehlende Werte**:
+   - Wenn Information nicht im Bericht: null verwenden
+   - Niemals raten oder erfinden!
+
+7. **Multi-Event Entscheidung**:
+   - EINE Region, EINE Läsion → 1 Event (z.B. Knoten im Ellbogen)
+   - MEHRERE Regionen → MEHRERE Events (z.B. Primärtumor Oberschenkel + Lungenmetastasen)
+   - Bei Unsicherheit: Lieber EINE Zeile mit allen Infos
+
+BEISPIELE für deutsche Ausdrücke:
+- "MRT Abdomen" → exam_type: "MRI", location_of_lesion: "Abdomen"
+- "Erstuntersuchung" → imaging_timing: "Initial imaging"
+- "Verlaufskontrolle" → imaging_timing: "Follow-up imaging"
+- "lokal fortgeschritten" → local_disease_status: "Measurable"
+- "keine Metastasen" → metastasis: "No metastasis"
+- "unklare Leberläsion" → metastasis: "Indeterminate", metastasis_indeterminate_category: "Indeterminate"
+
+BEISPIELE für Multi-Event:
+- Bericht: "Knoten im Ellbogen 3,5 cm. Beurteilung: Verdacht auf Sarkom" → 1 Event
+- Bericht: "Primärtumor Oberschenkel 8 cm. Multiple Lungenmetastasen." → 2 Events
+  Event 1: location_of_lesion="Lower extremity", largest_lesion_size_in_mm=80
+  Event 2: location_of_lesion="Chest", metastasis="Metastasis present", anatomic_location_of_metastasis=["Lung"]
+"""
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nRadiologie-Berichtstext:\n{text}"
+
+    response = model.generate_content(prompt)
+    raw = (response.text or "").strip()
+
+    # Bereinige Markdown-Wrapper
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+    # Normalisiere zu Liste
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    # Keine Key-Filterung mehr! Alle Felder durchlassen
+    # Die Validierung übernimmt RadiologyEvent in llm.py
+    return data
+
+
+def classify_document_type(text: str) -> str:
+    """
+    Klassifiziert einen medizinischen Berichtstext automatisch in einen der 6 Dokumenttypen.
+
+    Returns:
+        "radiology" | "radiotherapy" | "pathology" | "surgery" | "sarcoma_board" | "systemic_therapy"
+    """
+    if not text or text.strip() == "":
+        return "radiology"  # Default fallback
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    prompt = """Du bist ein medizinischer Dokumenten-Klassifikations-Assistent.
+
+AUFGABE: Klassifiziere den folgenden Berichtstext in GENAU EINEN der folgenden Dokumenttypen:
+
+1. **radiology** - Radiologie-Befunde (MRT, CT, Röntgen, PET, Ultraschall)
+   Erkennungsmerkmale: "Befund", "Beurteilung", "MRT", "CT", "Röntgen", "Bildgebung", "Untersuchung vom"
+
+2. **radiotherapy** - Strahlentherapie-Berichte
+   Erkennungsmerkmale: "Bestrahlungsplan", "Gy", "Gray", "Fraktionen", "Strahlentherapie", "Radiotherapie", "Zielvolumen"
+
+3. **pathology** - Pathologie-Befunde (Histologie, Biopsie)
+   Erkennungsmerkmale: "Histologie", "Biopsie", "mikroskopisch", "Färbung", "Immunhistochemie", "Gewebe", "Schnitt"
+
+4. **surgery** - Operations-Berichte
+   Erkennungsmerkmale: "Operation", "OP-Bericht", "Eingriff", "Resektion", "Operateur", "Anästhesie", "Schnittführung"
+
+5. **sarcoma_board** - Tumorboard-Protokolle
+   Erkennungsmerkmale: "Tumorboard", "Tumorkonferenz", "Board", "Empfehlung", "Diskussion", "Konsensus"
+
+6. **systemic_therapy** - Systemische Therapie (Chemotherapie, Immuntherapie)
+   Erkennungsmerkmale: "Chemotherapie", "Immuntherapie", "Zyklus", "Infusion", "mg/m²", "Medikamente", "Therapieplan"
+
+WICHTIG:
+- Antworte NUR mit dem Typ-Namen (z.B. "radiology")
+- KEIN JSON, KEINE Erklärung, NUR der Typ-Name
+- Bei Unsicherheit: Wähle den wahrscheinlichsten Typ
+
+Berichtstext:
+{text}
+
+Klassifikation:""".format(text=text[:5000])  # Nur erste 5000 Zeichen für schnellere Classification
+
+    try:
+        response = model.generate_content(prompt)
+        classification = (response.text or "").strip().lower()
+
+        # Validiere gegen erlaubte Typen
+        valid_types = {"radiology", "radiotherapy", "pathology", "surgery", "sarcoma_board", "systemic_therapy"}
+        if classification in valid_types:
+            return classification
+
+        # Fuzzy matching falls LLM leichte Variationen zurückgibt
+        if "radio" in classification and "therapy" in classification:
+            return "radiotherapy"
+        if "patholog" in classification:
+            return "pathology"
+        if "surg" in classification or "operation" in classification:
+            return "surgery"
+        if "board" in classification or "tumor" in classification:
+            return "sarcoma_board"
+        if "system" in classification or "chemo" in classification or "immun" in classification:
+            return "systemic_therapy"
+
+        # Default fallback
+        return "radiology"
+
+    except Exception:
+        # Bei Fehler: Default zu radiology
+        return "radiology"
+
+
+def extract_radiotherapy_events_from_text(text: str) -> List[Dict[str, Any]]:
+    """
+    Extrahiert Radiotherapie-Event-Daten aus einem Strahlentherapie-Bericht.
+    Unterstützt ~17 Felder inkl. Arrays (indications, therapy_types).
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    # Nur den Befund-Abschnitt extrahieren
+    text = extract_befund_section(text)
+
+    system_instructions = """Du bist ein spezialisierter medizinischer Extraktions-Assistent für STRAHLENTHERAPIE-Berichte.
+
+WICHTIG:
+1. Du bekommst NUR den BEFUND-Abschnitt eines Strahlentherapie-Berichts.
+   Extrahiere ALLE relevanten Informationen aus diesem Abschnitt:
+   - Indikation (präoperativ, postoperativ, definitiv, palliativ)
+   - Therapietyp (IMRT, VMAT, stereotaktisch, Protonentherapie, etc.)
+   - Dosierung (Gesamtdosis in Gy, Anzahl Fraktionen)
+   - Volumina (PTV, GTV in cm³)
+   - Termine (Überweisung, Erstkontakt, Therapiebeginn, Therapieende)
+   - Hyperthermie-Status
+
+2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
+
+3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+
+    json_spec = """
+Gib ein JSON-ARRAY zurück. Jedes Element ist ein RadiotherapyEvent:
+
+[
+  {
+    // IDs (optional für LLM-Extraktion)
+    "institution_id": number | null,
+    "patient_id": number | null,
+    "responsible_oncologist_id": number | null,
+
+    // Termine (alle optional)
+    "referral_date": "YYYY-MM-DD" | null,
+    "first_contact_date": "YYYY-MM-DD" | null,
+    "therapy_start_date": "YYYY-MM-DD" | null,
+    "therapy_end_date": "YYYY-MM-DD" | null,
+
+    // Indikationen - ARRAY!
+    "indications": ["[1] preoperative" | "[2] postoperative" | "[3] definitive" | "[4] palliative" | "[8] other/ unknown"],
+
+    // Therapietypen - ARRAY!
+    "therapy_types": [
+      "[1] Intensity modulated radiotherapy (IMRT)" |
+      "[2] volumetric arc VMAT" |
+      "[3] conventional 3D" |
+      "[4] stereotactic radiotherapy" |
+      "[5] proton therapy" |
+      "[6] intraoperative (Linac)" |
+      "[7] intraoperative brachytherapy" |
+      "[8] other"
+    ],
+
+    // Dosierung
+    "total_dose_in_gy": number | null,  // Gesamtdosis in Gray
+    "given_fractions": number | null,    // Anzahl Fraktionen
+
+    // Volumina
+    "ptv_volume_in_cm3": number | null,  // Planned Target Volume
+    "gtv_volume_in_cm3": number | null,  // Gross Tumor Volume
+
+    // Tumor-Lokalisation
+    "was_tumor_located_in_radiated_area": boolean | null,
+    "was_tumor_located_with_pre_existing_lymph_edema": boolean | null,
+
+    // Hyperthermie
+    "hyperthermia_status": "None" | "Planned" | "Ongoing" | "Completed" | "No" | "Yes" | null,
+
+    // Kommentare
+    "comments": string | null  // Max 2000 Zeichen
+  }
+]
+
+WICHTIGE REGELN:
+
+1. **Datum-Extraktion**:
+   - Deutsche Formate "15.01.2024" → "2024-01-15"
+   - referral_date = Überweisungsdatum
+   - first_contact_date = Erstkontakt
+   - therapy_start_date = Therapiebeginn
+   - therapy_end_date = Therapieende
+
+2. **Dosierung**:
+   - "50 Gy" → total_dose_in_gy: 50
+   - "25 Fraktionen" → given_fractions: 25
+   - "5 x 5 Gy" → total_dose_in_gy: 25, given_fractions: 5
+
+3. **Indikationen** (ARRAY!):
+   - "präoperativ" → ["[1] preoperative"]
+   - "postoperativ" → ["[2] postoperative"]
+   - "definitiv" → ["[3] definitive"]
+   - "palliativ" → ["[4] palliative"]
+   - Mehrere möglich: ["[1] preoperative", "[2] postoperative"]
+
+4. **Therapietypen** (ARRAY!):
+   - "IMRT" → ["[1] Intensity modulated radiotherapy (IMRT)"]
+   - "VMAT" → ["[2] volumetric arc VMAT"]
+   - "stereotaktisch" oder "SBRT" → ["[4] stereotactic radiotherapy"]
+   - "Protonentherapie" → ["[5] proton therapy"]
+   - Mehrere möglich: ["[1] Intensity modulated radiotherapy (IMRT)", "[4] stereotactic radiotherapy"]
+
+5. **Volumina**:
+   - "PTV 500 cm³" → ptv_volume_in_cm3: 500
+   - "GTV 120 cm³" → gtv_volume_in_cm3: 120
+
+6. **Fehlende Werte**:
+   - Wenn Information nicht im Bericht: null oder leeres Array []
+   - Niemals raten oder erfinden!
+
+BEISPIELE für deutsche Ausdrücke:
+- "neoadjuvante Radiochemotherapie" → indications: ["[1] preoperative"]
+- "50 Gy in 25 Fraktionen" → total_dose_in_gy: 50, given_fractions: 25
+- "IMRT-Plan" → therapy_types: ["[1] Intensity modulated radiotherapy (IMRT)"]
+- "Therapiebeginn 15.01.2024" → therapy_start_date: "2024-01-15"
+"""
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nStrahlentherapie-Berichtstext:\n{text}"
+
+    response = model.generate_content(prompt)
+    raw = (response.text or "").strip()
+
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    return data
+
+
+def extract_pathology_events_from_text(text: str) -> List[Dict[str, Any]]:
+    """
+    Extrahiert Pathologie-Event-Daten aus einem Pathologie-Befund.
+    Unterstützt ~30 Felder inkl. Molekularpathologie (IHC, FISH, RNA, DNA).
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    # Nur den Befund-Abschnitt extrahieren
+    text = extract_befund_section(text)
+
+    system_instructions = """Du bist ein spezialisierter medizinischer Extraktions-Assistent für PATHOLOGIE-Befunde.
+
+WICHTIG:
+1. Du bekommst NUR den BEFUND-Abschnitt eines Pathologie-Berichts.
+   Extrahiere ALLE relevanten Informationen aus diesem Abschnitt:
+   - Biopsie-/Resektionstyp und Datum
+   - WHO-Diagnose und Grading
+   - Chirurgische Ränder (R0/R1/R2) und Abstände
+   - Tumor-Charakteristika (Ki-67, Mitosen, Nekrose)
+   - Molekularpathologie (IHC, FISH, RNA, DNA)
+   - EORTC Response Grade (bei neoadjuvanter Therapie)
+
+2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
+
+3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+
+    json_spec = """
+Gib ein JSON-ARRAY zurück. Jedes Element ist ein PathologyEvent:
+
+[
+  {
+    // IDs
+    "institution_id": number,
+    "patient_id": number,
+    "responsible_pathologist_id": number | null,
+
+    // Biopsie/Resektion
+    "biopsy_type": "Incisional biopsy" | "Excisional biopsy" | "Core needle biopsy" | "Fine needle aspiration (FNA)" | "Punch biopsy" | "Resection specimen" | "Other" | null,
+    "biopsied_lesion_type": "Primary tumor" | "Recurrent tumor" | "Metastasis" | "Lymph node" | "Other" | null,
+    "biopsy_resection_date": "YYYY-MM-DD" | null,
+
+    // Befund-Daten
+    "registrate_date": "YYYY-MM-DD" | null,
+    "first_report_date": "YYYY-MM-DD" | null,
+    "final_report_date": "YYYY-MM-DD" | null,
+    "report_date": "YYYY-MM-DD" | null,
+
+    // Vorbehandlung
+    "prior_treatment": "None" | "Chemotherapy" | "Radiotherapy" | "Surgery" | "Combined treatment" | "Other" | null,
+
+    // Diagnose
+    "who_diagnosis": string | null,  // z.B. "High-grade myxofibrosarcoma"
+
+    // Grading
+    "diagnostic_grading": "G1 (well differentiated)" | "G2 (moderately differentiated)" | "G3 (poorly differentiated)" | "GX (cannot be assessed)" | null,
+
+    // Chirurgischer Rand
+    "judgment_of_surgical_margin": "R0 (complete resection, negative margins)" | "R1 (microscopic residual tumor)" | "R2 (macroscopic residual tumor)" | "Unknown" | "Not applicable (biopsy only)" | null,
+    "closest_distance_to_margin_mm": number | null,
+    "biological_barrier_to_closest_margin": "None" | "Fascia" | "Periosteum" | "Adventitia" | "Capsule" | "Other" | null,
+    "biological_barrier_to_closest_margin_comment": string | null,
+
+    // Tumor-Charakteristika
+    "proliferation_index": string | null,  // z.B. "Ki-67: 40%"
+    "mitoses_per_10hpf": string | null,     // z.B. "15/10 HPF"
+    "extent_of_necrosis": string | null,    // z.B. "<10%" oder "50-90%"
+
+    // Response nach neoadjuvanter Therapie
+    "eortc_response_grade": "Grade 1 (no therapy effect)" | "Grade 2 (< 50% necrosis)" | "Grade 3 (50-90% necrosis)" | "Grade 4 (> 90% necrosis)" | "Not applicable" | null,
+
+    // Molekularpathologie - IHC
+    "ihc_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
+    "ihc_result": string | null,  // Max 2000 Zeichen
+
+    // FISH
+    "fish_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
+    "fish_result": string | null,  // z.B. "MDM2 amplified"
+
+    // RNA-Sequenzierung
+    "rna_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
+    "rna_result": string | null,  // z.B. "SS18-SSX1 fusion"
+
+    // DNA-Sequenzierung
+    "dna_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
+    "dna_result": string | null,  // z.B. "TP53 mutation"
+
+    // Vollständiger Befund
+    "report": string | null  // Max 10000 Zeichen
+  }
+]
+
+WICHTIGE REGELN:
+
+1. **WHO-Diagnose**:
+   - Exakte Formulierung aus dem Bericht übernehmen
+   - z.B. "High-grade pleomorphic sarcoma NOS"
+   - z.B. "Myxofibrosarcoma, high grade"
+
+2. **Grading**:
+   - "G1" oder "gut differenziert" → "G1 (well differentiated)"
+   - "G2" oder "mäßig differenziert" → "G2 (moderately differentiated)"
+   - "G3" oder "schlecht differenziert" → "G3 (poorly differentiated)"
+
+3. **Ränder**:
+   - "R0" oder "in sano" → "R0 (complete resection, negative margins)"
+   - "R1" oder "mikroskopisch positiv" → "R1 (microscopic residual tumor)"
+   - "R2" oder "makroskopisch positiv" → "R2 (macroscopic residual tumor)"
+   - Abstand: "3 mm zum Rand" → closest_distance_to_margin_mm: 3
+
+4. **Molekularpathologie**:
+   - Wenn "IHC durchgeführt" → ihc_performed_status: "Performed"
+   - Wenn "FISH nicht durchgeführt" → fish_performed_status: "Not performed"
+   - Ergebnisse: Kopiere den vollständigen Text in _result Felder
+
+5. **Fehlende Werte**: null verwenden
+
+BEISPIELE:
+- "Ki-67: 40%" → proliferation_index: "Ki-67: 40%"
+- "15 Mitosen/10 HPF" → mitoses_per_10hpf: "15/10 HPF"
+- "Nekrose <10%" → extent_of_necrosis: "<10%"
+"""
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nPathologie-Berichtstext:\n{text}"
+
+    response = model.generate_content(prompt)
+    raw = (response.text or "").strip()
+
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    return data
+
+
+def extract_surgery_events_from_text(text: str) -> List[Dict[str, Any]]:
+    """
+    Extrahiert Chirurgie-Event-Daten aus einem Operations-Bericht.
+    Unterstützt ~25 Felder inkl. Arrays (resection, participated_disciplines).
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    # Nur den Befund-Abschnitt extrahieren
+    text = extract_befund_section(text)
+
+    system_instructions = """Du bist ein spezialisierter medizinischer Extraktions-Assistent für OPERATIONS-Berichte.
+
+WICHTIG:
+1. Du bekommst NUR den BEFUND-Abschnitt eines Operations-Berichts.
+   Extrahiere ALLE relevanten chirurgischen Details aus diesem Abschnitt:
+   - Indikation und Datum der Operation
+   - Anatomische Region und Seite
+   - Tumorgröße und Resektionstyp
+   - Resektionsrand (R0/R1/R2)
+   - Rekonstruktionstyp
+   - Amputation (falls zutreffend)
+   - Beteiligte Disziplinen
+
+2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
+
+3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+
+    json_spec = """
+Gib ein JSON-ARRAY zurück. Jedes Element ist ein SurgeryEvent:
+
+[
+  {
+    // IDs
+    "institution_id": number,
+    "patient_id": number,
+    "responsible_surgeon_id": number,
+
+    // PFLICHTFELD
+    "surgery_date": "YYYY-MM-DD",
+
+    // Operations-Details
+    "indication": "Preoperative biopsy" | "Definitive surgery" | "Curative resection" | "Palliative surgery" | "Revision surgery" | "Debulking" | "Metastasectomy" | "Other" | null,
+    "indication_comment": string | null,
+
+    "surgery_side": "Left" | "Right" | "Bilateral" | "Midline" | "Not applicable" | null,
+    "anatomic_region": "Head and neck" | "Trunk" | "Chest wall" | "Abdomen" | "Pelvis" | "Upper extremity" | "Lower extremity" | "Retroperitoneum" | "Other" | null,
+
+    // Tumor
+    "greatest_surgical_tumor_dimension_in_mm": number | null,
+    "had_tumor_spillage": boolean | null,
+
+    // Resektion - ARRAY!
+    "resection": [
+      "Wide excision" | "Marginal excision" | "Intralesional excision" |
+      "Compartmental resection" | "En-bloc resection" | "Limb-sparing surgery"
+    ],
+
+    "resected_tumor_margin": "R0 (complete resection, negative margins)" | "R1 (microscopic residual tumor)" | "R2 (macroscopic residual tumor)" | "Unknown" | null,
+
+    // Rekonstruktion
+    "reconstruction": "None" | "Primary closure" | "Skin graft" | "Local flap" | "Free flap" | "Mesh" | "Prosthesis" | "Bone graft" | "Endoprosthesis" | "Other" | null,
+
+    // Amputation
+    "amputation": "None" | "Above-knee amputation" | "Below-knee amputation" | "Above-elbow amputation" | "Below-elbow amputation" | "Hip disarticulation" | "Shoulder disarticulation" | "Hemipelvectomy" | "Other" | null,
+
+    "hemipelvectomy": string[] | [],  // Array für Details
+
+    // Revisionen
+    "first_revision_details": string | null,
+    "second_revision_details": string | null,
+
+    // Beteiligte Disziplinen - ARRAY!
+    "participated_disciplines": [
+      "Orthopedic surgery" | "General surgery" | "Plastic surgery" |
+      "Vascular surgery" | "Thoracic surgery" | "Neurosurgery" |
+      "Gynecology" | "Urology" | "Other"
+    ],
+    "participated_disciplines_comment": string | null
+  }
+]
+
+WICHTIGE REGELN:
+
+1. **Datum**: surgery_date ist PFLICHTFELD!
+   - "OP am 15.01.2024" → surgery_date: "2024-01-15"
+
+2. **Indikation**:
+   - "Whoops-Exzision" oder "unbeabsichtigt" → "Preoperative biopsy"
+   - "kurative Resektion" → "Curative resection"
+   - "palliativ" → "Palliative surgery"
+
+3. **Anatomische Region**:
+   - "Oberschenkel" → "Lower extremity"
+   - "Unterarm" → "Upper extremity"
+   - "Becken" → "Pelvis"
+
+4. **Resektionstyp** (ARRAY!):
+   - "weite Exzision" → ["Wide excision"]
+   - "kompartmentelle Resektion" → ["Compartmental resection"]
+   - Mehrere möglich: ["Wide excision", "Compartmental resection"]
+
+5. **Resektionsrand**:
+   - "R0" → "R0 (complete resection, negative margins)"
+   - "R1" → "R1 (microscopic residual tumor)"
+   - "R2" → "R2 (macroscopic residual tumor)"
+
+6. **Rekonstruktion**:
+   - "primärer Wundverschluss" → "Primary closure"
+   - "Hauttransplantat" → "Skin graft"
+   - "freier Lappen" → "Free flap"
+   - "Mesh" → "Mesh"
+
+7. **Beteiligte Disziplinen** (ARRAY!):
+   - "Plastische Chirurgie" → ["Plastic surgery"]
+   - "Gefäßchirurgie" → ["Vascular surgery"]
+   - Mehrere: ["Orthopedic surgery", "Plastic surgery"]
+
+BEISPIELE:
+- "Tumorgröße 8 cm" → greatest_surgical_tumor_dimension_in_mm: 80
+- "linker Oberschenkel" → surgery_side: "Left", anatomic_region: "Lower extremity"
+"""
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nOperations-Berichtstext:\n{text}"
+
+    response = model.generate_content(prompt)
+    raw = (response.text or "").strip()
+
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    return data
+
+
+def extract_sarcoma_board_events_from_text(text: str) -> List[Dict[str, Any]]:
+    """
+    Extrahiert Sarkom-Board-Event-Daten aus einem Tumorboard-Protokoll.
+    Unterstützt ~30 Felder inkl. Board-Entscheidungen und Zusammenfassungen.
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    # Nur den Befund-Abschnitt extrahieren
+    text = extract_befund_section(text)
+
+    system_instructions = """Du bist ein spezialisierter medizinischer Extraktions-Assistent für TUMORBOARD-Protokolle.
+
+WICHTIG:
+1. Du bekommst NUR den BEFUND-Abschnitt eines Tumorboard-Protokolls.
+   Extrahiere ALLE relevanten Informationen aus diesem Abschnitt:
+   - Präsentationsdatum und Grund
+   - Patient-Status vorher/nachher
+   - Behandlungsverlauf
+   - Fragestellung an das Board
+   - Board-Entscheidungen (Chirurgie, Radiotherapie, Systemtherapie, etc.)
+   - Zusammenfassungen (Radiologie, Pathologie, etc.)
+
+2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
+
+3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+
+    json_spec = """
+Gib ein JSON-ARRAY zurück. Jedes Element ist ein SarcomaBoardEvent:
+
+[
+  {
+    // IDs
+    "institution_id": number,
+    "patient_id": number,
+
+    // PFLICHTFELD
+    "presentation_date": "YYYY-MM-DD",
+
+    // Grund und Status
+    "reason_for_presentation": "Primary diagnosis" | "Follow-up" | "Second opinion" | "Recurrence" | "Metastasis" | "Treatment decision" | "Complication" | "Other" | null,
+    "status_before_follow_up": "Pre-treatment" | "During treatment" | "Post-treatment" | "Recurrence" | "Stable disease" | "Progressive disease" | "Other" | null,
+    "status_after_follow_up": "Complete remission" | "Partial remission" | "Stable disease" | "Progressive disease" | "Recurrence" | "Deceased" | "Other" | null,
+    "status_after_follow_up_comment": string | null,
+
+    // Behandlungsverlauf
+    "treatment_before_follow_up": "None" | "Surgery" | "Radiotherapy" | "Chemotherapy" | "Combined treatment" | "Other" | null,
+    "follow_up_reason": "Routine surveillance" | "Symptom evaluation" | "Treatment response assessment" | "Pre-treatment evaluation" | "Post-treatment evaluation" | "Other" | null,
+    "last_execution": "Surgery" | "Radiotherapy" | "Chemotherapy" | "Systemic therapy" | "Biopsy" | "Imaging" | "None" | "Other" | null,
+    "unplanned_excision_date": "YYYY-MM-DD" | null,
+
+    // Fragestellung
+    "question": string | null,  // Max 2000 Zeichen
+    "proposed_procedure": string | null,  // Max 2000 Zeichen
+
+    // ECOG
+    "current_ecog": number | null,  // 0-5
+
+    // Board-Entscheidungen (jeweils mit Kommentar)
+    "decision_surgery": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_surgery_comment": string | null,
+
+    "decision_radio_therapy": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_radio_therapy_comment": string | null,
+
+    "decision_systemic_therapy": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_systemic_therapy_comment": string | null,
+
+    "decision_follow_up": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_follow_up_comment": string | null,
+
+    "decision_diagnostics": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_diagnostics_comment": string | null,
+
+    "decision_palliative_care": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_palliative_care_comment": string | null,
+
+    // Zusammenfassungen
+    "summary": string | null,  // Max 5000 Zeichen
+    "patient_history": string | null,
+    "summary_patient_information": string | null,
+    "summary_radiology": string | null,
+    "summary_pathology": string | null,
+    "further_details": string | null,
+
+    // Zusätzlich
+    "fast_track": boolean,  // Default: false
+    "whoops_surgery_institution_id": number | null,
+    "presenting_physician_id": number | null
+  }
+]
+
+WICHTIGE REGELN:
+
+1. **Präsentationsdatum**: presentation_date ist PFLICHTFELD!
+   - "Board vom 15.01.2024" → "2024-01-15"
+
+2. **Board-Entscheidungen**:
+   - "Chirurgie empfohlen" → decision_surgery: "Yes"
+   - "Radiotherapie nicht indiziert" → decision_radio_therapy: "No"
+   - "Chemotherapie wird diskutiert" → decision_systemic_therapy: "Maybe/Unclear"
+   - Kommentare: Zusätzliche Details zur Entscheidung
+
+3. **ECOG**:
+   - "ECOG 0" → current_ecog: 0
+   - "ECOG 2" → current_ecog: 2
+
+4. **Zusammenfassungen**:
+   - summary: Gesamtzusammenfassung der Board-Sitzung
+   - summary_radiology: Radiologische Zusammenfassung
+   - summary_pathology: Pathologische Zusammenfassung
+
+5. **Fehlende Werte**: null verwenden
+
+BEISPIELE:
+- "Empfehlung: Weite Exzision mit anschließender Radiotherapie"
+  → decision_surgery: "Yes", decision_radio_therapy: "Yes"
+- "Follow-up in 3 Monaten"
+  → decision_follow_up: "Yes", decision_follow_up_comment: "in 3 Monaten"
+"""
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nTumorboard-Protokoll:\n{text}"
+
+    response = model.generate_content(prompt)
+    raw = (response.text or "").strip()
+
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    return data
+
+
+def extract_systemic_therapy_events_from_text(text: str) -> List[Dict[str, Any]]:
+    """
+    Extrahiert Systemische-Therapie-Event-Daten aus einem Chemotherapie/Immuntherapie-Bericht.
+    Unterstützt ~20 Hauptfelder + nested Arrays (drugs, adverse_events).
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+
+    # Nur den Befund-Abschnitt extrahieren
+    text = extract_befund_section(text)
+
+    system_instructions = """Du bist ein spezialisierter medizinischer Extraktions-Assistent für SYSTEMISCHE THERAPIE-Berichte (Chemotherapie, Immuntherapie, Targeted Therapy).
+
+WICHTIG:
+1. Du bekommst NUR den BEFUND-Abschnitt eines Systemtherapie-Berichts.
+   Extrahiere ALLE relevanten Informationen aus diesem Abschnitt:
+   - Therapiegrund (neoadjuvant, adjuvant, palliativ) und Linie
+   - Protokoll (MAP, MAID, AI, Gemcitabine/Docetaxel, etc.)
+   - Medikamente mit Dosierungen
+   - Zyklen und Zeitraum
+   - Unerwünschte Ereignisse (Adverse Events)
+   - Hyperthermie, Studienteilnahme
+
+2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
+
+3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+
+    json_spec = """
+Gib ein JSON-ARRAY zurück. Jedes Element ist ein SystemicTherapyEvent:
+
+[
+  {
+    // IDs
+    "institution_id": number,
+    "patient_id": number,
+    "responsible_oncologist_id": number | null,
+
+    // Therapiegrund
+    "reason": "Neoadjuvant" | "Adjuvant" | "Palliative (first line)" | "Palliative (further line)" | "Curative" | "Maintenance" | "Other" | null,
+    "reason_comment": string | null,
+    "treatment_line": 1 | 2 | 3 | 4 | 5 | null,  // 1=first line, 5=fifth or more
+
+    // Protokolle
+    "bone_protocol": "MAP (Methotrexate, Adriamycin, Cisplatin)" | "MAPIE (MAP + Ifosfamide, Etoposide)" | "EURAMOS" | "IE (Ifosfamide, Etoposide)" | "VAI (Vincristine, Adriamycin, Ifosfamide)" | "Other" | "None" | null,
+    "bone_protocol_comment": string | null,
+
+    "softtissue_protocol": "AI (Adriamycin, Ifosfamide)" | "MAID (Mesna, Adriamycin, Ifosfamide, Dacarbazine)" | "Gemcitabine/Docetaxel" | "Trabectedin" | "Pazopanib" | "Eribulin" | "Ifosfamide monotherapy" | "Doxorubicin monotherapy" | "Other" | "None" | null,
+    "softtissue_protocol_comment": string | null,
+
+    // Zeitraum
+    "cycle_start_date": "YYYY-MM-DD" | null,
+    "cycle_end_date": "YYYY-MM-DD" | null,
+    "cycles_executed": string | null,  // z.B. "6/6" oder "4/6"
+
+    // Begleittherapie
+    "was_rct_concomittant": boolean,  // Gleichzeitige Radiochemotherapie
+    "hyperthermia_status": "None" | "Planned" | "Ongoing" | "Completed" | null,
+
+    // Studienteilnahme
+    "clinical_trial_inclusion": "Yes" | "No" | "Unknown" | null,
+
+    // Abbruch
+    "discontinuation_reason": "Completion of planned therapy" | "Progressive disease" | "Toxicity" | "Patient refusal" | "Death" | "Surgery planned" | "Other" | null,
+
+    // Patient-Typ
+    "patient_type": "Pediatric" | "Adolescent/Young adult (AYA)" | "Adult" | null,
+
+    // Assessment
+    "assessment_date": "YYYY-MM-DD" | null,
+
+    // Kommentare
+    "comments": string | null,
+
+    // NESTED: Medikamente (ARRAY!)
+    "drugs": [
+      {
+        "drug_type": "Adriamycin (Doxorubicin)" | "Cisplatin" | "Carboplatin" | "Ifosfamide" | "Etoposide" | "Methotrexate" | "Vincristine" | "Cyclophosphamide" | "Dacarbazine" | "Gemcitabine" | "Docetaxel" | "Pazopanib" | "Trabectedin" | "Eribulin" | "Imatinib" | "Mesna" | "G-CSF" | "Other",
+        "dose": number | null,
+        "dose_unit": string | null,  // z.B. "mg", "mg/m²", "mg/kg"
+        "frequency": number | null,
+        "frequency_unit": string | null,  // z.B. "daily", "weekly", "q3w"
+        "frequency_unit_comment": string | null,
+        "route": "Intravenous (IV)" | "Oral (PO)" | "Intramuscular (IM)" | "Subcutaneous (SC)" | "Intrathecal (IT)" | "Other" | null,
+        "administration_day": string | null  // z.B. "Day 1", "Day 1-5"
+      }
+    ],
+
+    // NESTED: Unerwünschte Ereignisse (ARRAY!)
+    "adverse_events": [
+      {
+        "medical_area": string,  // z.B. "Hematology"
+        "event_type": string,    // z.B. "Neutropenia"
+        "grade": string,         // CTCAE Grade "1", "2", "3", "4", "5"
+        "start_date": "YYYY-MM-DD" | null,
+        "end_date": "YYYY-MM-DD" | null,
+        "comment": string | null
+      }
+    ]
+  }
+]
+
+WICHTIGE REGELN:
+
+1. **Therapiegrund und Linie**:
+   - "neoadjuvant" → reason: "Neoadjuvant"
+   - "adjuvant" → reason: "Adjuvant"
+   - "palliativ Erstlinie" → reason: "Palliative (first line)", treatment_line: 1
+   - "Zweitlinientherapie" → treatment_line: 2
+
+2. **Protokolle**:
+   - "MAP-Schema" → bone_protocol: "MAP (Methotrexate, Adriamycin, Cisplatin)"
+   - "AI-Schema" → softtissue_protocol: "AI (Adriamycin, Ifosfamide)"
+   - "Gem/Doce" → softtissue_protocol: "Gemcitabine/Docetaxel"
+
+3. **Medikamente** (ARRAY!):
+   - Für jedes Medikament ein eigenes Objekt
+   - "Doxorubicin 75 mg/m² i.v. Tag 1" →
+     {
+       drug_type: "Adriamycin (Doxorubicin)",
+       dose: 75,
+       dose_unit: "mg/m²",
+       route: "Intravenous (IV)",
+       administration_day: "Day 1"
+     }
+
+4. **Unerwünschte Ereignisse** (ARRAY!):
+   - "Neutropenie Grad 3" →
+     {
+       medical_area: "Hematology",
+       event_type: "Neutropenia",
+       grade: "3"
+     }
+
+5. **Zyklen**:
+   - "6 Zyklen geplant, 4 verabreicht" → cycles_executed: "4/6"
+   - "Zyklus 1-6 abgeschlossen" → cycles_executed: "6/6"
+
+6. **Fehlende Werte**: null oder leere Arrays []
+
+BEISPIELE:
+- "AI-Schema: Adriamycin 75 mg/m² + Ifosfamide 9 g/m²"
+  → drugs: [
+      {drug_type: "Adriamycin (Doxorubicin)", dose: 75, dose_unit: "mg/m²"},
+      {drug_type: "Ifosfamide", dose: 9, dose_unit: "mg/m²"}
+    ]
+"""
+
+    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nSystemtherapie-Berichtstext:\n{text}"
+
+    response = model.generate_content(prompt)
+    raw = (response.text or "").strip()
+
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw.replace("json", "", 1).replace("JSON", "", 1).strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+
+    return data

@@ -26,8 +26,10 @@ module "vm" {
   project-id = var.project-id
   zone = var.zone
   vm-service-account-email = var.vm-service-account-email
-  virtual_host = "dev.shaperag.com"
-  letsencrypt_email = var.notify-email
+  frontend_virtual_host     = "dev.shaperag.com"
+  frontend_letsencrypt_host = "dev.shaperag.com"
+  letsencrypt_email         = var.notify-email
+  gemini_secret_name = "gemini_api_key_dev"
 }
 
 module "policy" {

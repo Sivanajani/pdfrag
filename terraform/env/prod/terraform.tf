@@ -1,7 +1,7 @@
 terraform {
   backend "gcs" {
     bucket = "rag-prod-tf-state-bucket"
-    prefix = "infra/prod"
+    prefix = "infra/dev"
   }
 
   required_providers {
