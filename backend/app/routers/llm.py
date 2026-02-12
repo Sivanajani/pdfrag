@@ -1,9 +1,10 @@
+import logging
 from typing import Optional, List, Any, Dict
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.utils.paths import TMP_DIR
+from app.utils.paths import validate_doc_id
 from app.services.pdf_service import read_pdf_text
 from app.services.gemini_client import (
     extract_structured_data_from_text,
@@ -23,14 +24,39 @@ from app.schemas.surgeries import SurgeryEvent
 from app.schemas.sarcoma_boards import SarcomaBoardEvent
 from app.schemas.systemic_therapies import SystemicTherapyEvent
 
-
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["llm"])
 
-class LLMExtractRequest(BaseModel):
+
+# --- Shared helpers ---
+
+class _DocOrTextRequest(BaseModel):
     doc_id: Optional[str] = None
     text: Optional[str] = None
     max_chars: int = 20000
+
+
+def _resolve_text(payload: _DocOrTextRequest) -> str:
+    """Resolve text from doc_id or direct text field. Raises HTTPException on invalid input."""
+    if not payload.doc_id and not payload.text:
+        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
+    if payload.doc_id and payload.text:
+        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
+
+    if payload.doc_id:
+        pdf_path = validate_doc_id(payload.doc_id)
+        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
+    else:
+        raw_text = payload.text[: payload.max_chars]
+
+    if not raw_text:
+        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
+
+    return raw_text
+
+
+# --- Generic extraction ---
 
 class ExtractedItem(BaseModel):
     source_type: Optional[str] = None
@@ -40,394 +66,197 @@ class ExtractedItem(BaseModel):
     unit: Optional[str] = None
     note: Optional[str] = None
 
+
 class LLMExtractResponse(BaseModel):
     items: List[ExtractedItem]
 
-class RadiologyExtractRequest(BaseModel):
-    doc_id: Optional[str] = None
-    text: Optional[str] = None
-    max_chars: int = 20000
+
+@router.post("/llm/extract", response_model=LLMExtractResponse)
+async def llm_extract(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
+
+    try:
+        items_raw: List[Dict[str, Any]] = extract_structured_data_from_text(raw_text)
+    except Exception:
+        logger.exception("LLM-Extraktion fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei LLM-Extraktion.")
+
+    items = [ExtractedItem(**item) for item in items_raw]
+    return LLMExtractResponse(items=items)
+
+
+# --- Radiology ---
 
 class RadiologyExtractResponse(BaseModel):
     events: List[RadiologyEvent]
 
 
-@router.post("/llm/extract", response_model=LLMExtractResponse)
-async def llm_extract(payload: LLMExtractRequest):
-    """
-    Nimmt entweder:
-    - doc_id: PDF wurde bereits hochgeladen (tmp/<doc_id>.pdf)
-    - text: bereits extrahierter Text (direkt vom Frontend oder anderem Endpoint)
-
-    Gibt strukturierte Items aus dem Bericht zurück, extrahiert via Gemini.
-    """
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(
-            status_code=400,
-            detail="Bitte entweder 'doc_id' oder 'text' angeben."
-        )
-
-    if payload.doc_id and payload.text:
-        raise HTTPException(
-            status_code=400,
-            detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides."
-        )
-
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) LLM aufrufen
-    try:
-        items_raw: List[Dict[str, Any]] = extract_structured_data_from_text(raw_text)
-    except Exception as e:
-        # In der Praxis: Logging hinzufügen
-        raise HTTPException(status_code=500, detail=f"Fehler bei LLM-Extraktion: {e}")
-
-    items = [ExtractedItem(**item) for item in items_raw]
-
-    return LLMExtractResponse(items=items)
-
 @router.post("/llm/extract-radiology", response_model=RadiologyExtractResponse)
-async def llm_extract_radiology(payload: RadiologyExtractRequest):
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
-    if payload.doc_id and payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
+async def llm_extract_radiology(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
 
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) Gemini → LISTE von dicts
     try:
         raw_list = extract_radiology_events_from_text(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler bei Radiology-Extraktion: {e}")
+    except Exception:
+        logger.exception("Radiology-Extraktion fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Radiology-Extraktion.")
 
-    # 3) Pydantic: jedes Element validieren
     try:
         events = [RadiologyEvent(**r) for r in raw_list]
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"RadiologyEvent Validation failed: {e}")
+    except Exception:
+        logger.exception("RadiologyEvent Validierung fehlgeschlagen")
+        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
 
     return RadiologyExtractResponse(events=events)
 
 
+# --- Classify doc type ---
+
 class ClassifyDocTypeRequest(BaseModel):
     doc_id: Optional[str] = None
     text: Optional[str] = None
-    max_chars: int = 5000  # Für Classification reichen 5000 Zeichen
+    max_chars: int = 5000
 
 
 class ClassifyDocTypeResponse(BaseModel):
-    doc_type: str  # "radiology" | "radiotherapy" | "pathology" | "surgery" | "sarcoma_board" | "systemic_therapy"
+    doc_type: str
 
 
 @router.post("/llm/classify-doc-type", response_model=ClassifyDocTypeResponse)
 async def classify_doc_type(payload: ClassifyDocTypeRequest):
-    """
-    Klassifiziert einen Dokumententext automatisch in einen der 6 Dokumenttypen.
+    # Reuse _resolve_text with a temporary _DocOrTextRequest
+    req = _DocOrTextRequest(doc_id=payload.doc_id, text=payload.text, max_chars=payload.max_chars)
+    raw_text = _resolve_text(req)
 
-    Nimmt entweder:
-    - doc_id: PDF wurde bereits hochgeladen (tmp/<doc_id>.pdf)
-    - text: bereits extrahierter Text
-
-    Gibt zurück: "radiology" | "radiotherapy" | "pathology" | "surgery" | "sarcoma_board" | "systemic_therapy"
-    """
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
-    if payload.doc_id and payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
-
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) Gemini Classification
     try:
         doc_type = classify_document_type(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler bei Dokumenten-Klassifikation: {e}")
+    except Exception:
+        logger.exception("Dokumenten-Klassifikation fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Dokumenten-Klassifikation.")
 
     return ClassifyDocTypeResponse(doc_type=doc_type)
 
 
-# ============================================================================
-# RADIOTHERAPY EXTRACTION
-# ============================================================================
-
-class RadiotherapyExtractRequest(BaseModel):
-    doc_id: Optional[str] = None
-    text: Optional[str] = None
-    max_chars: int = 20000
-
+# --- Radiotherapy ---
 
 class RadiotherapyExtractResponse(BaseModel):
     events: List[RadiotherapyEvent]
 
 
 @router.post("/llm/extract-radiotherapy", response_model=RadiotherapyExtractResponse)
-async def llm_extract_radiotherapy(payload: RadiotherapyExtractRequest):
-    """
-    Extrahiert Radiotherapie-Daten aus einem Strahlentherapie-Bericht.
-    """
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
-    if payload.doc_id and payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
+async def llm_extract_radiotherapy(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
 
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) Gemini → LISTE von dicts
     try:
         raw_list = extract_radiotherapy_events_from_text(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler bei Radiotherapy-Extraktion: {e}")
+    except Exception:
+        logger.exception("Radiotherapy-Extraktion fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Radiotherapy-Extraktion.")
 
-    # 3) Pydantic: jedes Element validieren
     try:
         events = [RadiotherapyEvent(**r) for r in raw_list]
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"RadiotherapyEvent Validation failed: {e}")
+    except Exception:
+        logger.exception("RadiotherapyEvent Validierung fehlgeschlagen")
+        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
 
     return RadiotherapyExtractResponse(events=events)
 
 
-# ============================================================================
-# PATHOLOGY EXTRACTION
-# ============================================================================
-
-class PathologyExtractRequest(BaseModel):
-    doc_id: Optional[str] = None
-    text: Optional[str] = None
-    max_chars: int = 20000
-
+# --- Pathology ---
 
 class PathologyExtractResponse(BaseModel):
     events: List[PathologyEvent]
 
 
 @router.post("/llm/extract-pathology", response_model=PathologyExtractResponse)
-async def llm_extract_pathology(payload: PathologyExtractRequest):
-    """
-    Extrahiert Pathologie-Daten aus einem Pathologie-Befund.
-    """
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
-    if payload.doc_id and payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
+async def llm_extract_pathology(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
 
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) Gemini → LISTE von dicts
     try:
         raw_list = extract_pathology_events_from_text(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler bei Pathology-Extraktion: {e}")
+    except Exception:
+        logger.exception("Pathology-Extraktion fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Pathology-Extraktion.")
 
-    # 3) Pydantic: jedes Element validieren
     try:
         events = [PathologyEvent(**r) for r in raw_list]
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"PathologyEvent Validation failed: {e}")
+    except Exception:
+        logger.exception("PathologyEvent Validierung fehlgeschlagen")
+        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
 
     return PathologyExtractResponse(events=events)
 
 
-# ============================================================================
-# SURGERY EXTRACTION
-# ============================================================================
-
-class SurgeryExtractRequest(BaseModel):
-    doc_id: Optional[str] = None
-    text: Optional[str] = None
-    max_chars: int = 20000
-
+# --- Surgery ---
 
 class SurgeryExtractResponse(BaseModel):
     events: List[SurgeryEvent]
 
 
 @router.post("/llm/extract-surgery", response_model=SurgeryExtractResponse)
-async def llm_extract_surgery(payload: SurgeryExtractRequest):
-    """
-    Extrahiert Chirurgie-Daten aus einem Operations-Bericht.
-    """
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
-    if payload.doc_id and payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
+async def llm_extract_surgery(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
 
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) Gemini → LISTE von dicts
     try:
         raw_list = extract_surgery_events_from_text(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler bei Surgery-Extraktion: {e}")
+    except Exception:
+        logger.exception("Surgery-Extraktion fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Surgery-Extraktion.")
 
-    # 3) Pydantic: jedes Element validieren
     try:
         events = [SurgeryEvent(**r) for r in raw_list]
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"SurgeryEvent Validation failed: {e}")
+    except Exception:
+        logger.exception("SurgeryEvent Validierung fehlgeschlagen")
+        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
 
     return SurgeryExtractResponse(events=events)
 
 
-# ============================================================================
-# SARCOMA BOARD EXTRACTION
-# ============================================================================
-
-class SarcomaBoardExtractRequest(BaseModel):
-    doc_id: Optional[str] = None
-    text: Optional[str] = None
-    max_chars: int = 20000
-
+# --- Sarcoma Board ---
 
 class SarcomaBoardExtractResponse(BaseModel):
     events: List[SarcomaBoardEvent]
 
 
 @router.post("/llm/extract-sarcoma-board", response_model=SarcomaBoardExtractResponse)
-async def llm_extract_sarcoma_board(payload: SarcomaBoardExtractRequest):
-    """
-    Extrahiert Sarkom-Board-Daten aus einem Tumorboard-Protokoll.
-    """
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
-    if payload.doc_id and payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
+async def llm_extract_sarcoma_board(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
 
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) Gemini → LISTE von dicts
     try:
         raw_list = extract_sarcoma_board_events_from_text(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler bei Sarcoma Board-Extraktion: {e}")
+    except Exception:
+        logger.exception("Sarcoma Board-Extraktion fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Sarcoma Board-Extraktion.")
 
-    # 3) Pydantic: jedes Element validieren
     try:
         events = [SarcomaBoardEvent(**r) for r in raw_list]
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"SarcomaBoardEvent Validation failed: {e}")
+    except Exception:
+        logger.exception("SarcomaBoardEvent Validierung fehlgeschlagen")
+        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
 
     return SarcomaBoardExtractResponse(events=events)
 
 
-# ============================================================================
-# SYSTEMIC THERAPY EXTRACTION
-# ============================================================================
-
-class SystemicTherapyExtractRequest(BaseModel):
-    doc_id: Optional[str] = None
-    text: Optional[str] = None
-    max_chars: int = 20000
-
+# --- Systemic Therapy ---
 
 class SystemicTherapyExtractResponse(BaseModel):
     events: List[SystemicTherapyEvent]
 
 
 @router.post("/llm/extract-systemic-therapy", response_model=SystemicTherapyExtractResponse)
-async def llm_extract_systemic_therapy(payload: SystemicTherapyExtractRequest):
-    """
-    Extrahiert Systemische-Therapie-Daten aus einem Chemotherapie/Immuntherapie-Bericht.
-    """
-    if not payload.doc_id and not payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' oder 'text' angeben.")
-    if payload.doc_id and payload.text:
-        raise HTTPException(status_code=400, detail="Bitte entweder 'doc_id' ODER 'text' angeben, nicht beides.")
+async def llm_extract_systemic_therapy(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
 
-    # 1) Text besorgen
-    if payload.doc_id:
-        pdf_path = TMP_DIR / f"{payload.doc_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(status_code=404, detail="PDF nicht gefunden (ID unbekannt).")
-        raw_text = read_pdf_text(pdf_path, max_chars=payload.max_chars)
-    else:
-        raw_text = payload.text[: payload.max_chars]
-
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="Kein Text gefunden oder leer.")
-
-    # 2) Gemini → LISTE von dicts
     try:
         raw_list = extract_systemic_therapy_events_from_text(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler bei Systemic Therapy-Extraktion: {e}")
+    except Exception:
+        logger.exception("Systemic Therapy-Extraktion fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Systemic Therapy-Extraktion.")
 
-    # 3) Pydantic: jedes Element validieren
     try:
         events = [SystemicTherapyEvent(**r) for r in raw_list]
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"SystemicTherapyEvent Validation failed: {e}")
+    except Exception:
+        logger.exception("SystemicTherapyEvent Validierung fehlgeschlagen")
+        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
 
     return SystemicTherapyExtractResponse(events=events)
