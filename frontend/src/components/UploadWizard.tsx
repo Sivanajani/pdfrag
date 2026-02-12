@@ -123,7 +123,7 @@ export default function UploadWizard({ onResults }: Props) {
     );
 
     try {
-      const res = await uploadPdfWithText(doc.file, "radiology"); // doc_type placeholder, will be classified later
+      const res = await uploadPdfWithText(doc.file);
       setDocs((prev) =>
         prev.map((d, i) =>
           i === currentIdx
@@ -152,33 +152,36 @@ export default function UploadWizard({ onResults }: Props) {
     const doc = docs[currentIdx];
     if (!doc || !doc.patientId.trim() || !doc.extractedText) return;
 
+    // Capture values before async gap
+    const idx = currentIdx;
+    const text = doc.extractedText;
+
     // Classify doc type
     setIsClassifying(true);
 
+    let classifiedType: DocType;
     try {
-      const classifyRes = await classifyDocTypeByText(doc.extractedText);
-      setDocs((prev) =>
-        prev.map((d, i) =>
-          i === currentIdx ? { ...d, docType: classifyRes.doc_type } : d
-        )
-      );
+      const classifyRes = await classifyDocTypeByText(text);
+      classifiedType = classifyRes.doc_type;
     } catch {
-      // Fallback: radiology if classification fails
-      setDocs((prev) =>
-        prev.map((d, i) =>
-          i === currentIdx ? { ...d, docType: "radiology" as DocType } : d
-        )
-      );
+      classifiedType = "radiology" as DocType;
     } finally {
       setIsClassifying(false);
     }
 
-    // Move to next or summary
-    if (currentIdx < docs.length - 1) {
-      setCurrentIdx(currentIdx + 1);
-    } else {
-      setPhase("summary");
-    }
+    // Update doc type and navigate using fresh state
+    setDocs((prev) => {
+      const updated = prev.map((d, i) =>
+        i === idx ? { ...d, docType: classifiedType } : d
+      );
+      // Navigate based on current (fresh) docs length
+      if (idx < updated.length - 1) {
+        setCurrentIdx(idx + 1);
+      } else {
+        setPhase("summary");
+      }
+      return updated;
+    });
   }, [currentIdx, docs]);
 
   const updatePatientId = (value: string) => {
@@ -403,7 +406,7 @@ export default function UploadWizard({ onResults }: Props) {
                 color: "text.primary",
                 maxHeight: 300,
                 overflow: "auto",
-                bgcolor: "grey.50",
+                bgcolor: "background.default",
                 fontFamily: "monospace",
                 fontSize: 12,
                 whiteSpace: "pre-wrap",

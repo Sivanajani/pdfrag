@@ -20,11 +20,11 @@ export type DocType =
 
 export async function uploadPdfWithText(
   file: File,
-  docType: DocType
+  docType?: DocType
 ): Promise<UploadWithTextResponse> {
   const fd = new FormData();
   fd.append("file", file);
-  fd.append("doc_type", docType);
+  if (docType) fd.append("doc_type", docType);
 
   const res = await fetch(`${API}/upload-with-text`, {
     method: "POST",

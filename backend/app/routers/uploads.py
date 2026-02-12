@@ -109,7 +109,7 @@ async def extract_text_direct(
 @router.post("/upload-with-text")
 async def upload_pdf_with_text(
     file: UploadFile = File(...),
-    doc_type: str = Form(...),  # <-- NEU
+    doc_type: str = Form("unknown"),
     extract: bool = Query(True, description="Wenn true, wird der Text sofort extrahiert."),
 ):
     """Nimmt eine PDF entgegen, speichert sie und gibt optional direkt den Text zurück."""
