@@ -150,6 +150,78 @@ export async function classifyDocTypeByDocId(docId: string): Promise<ClassifyDoc
   return res.json()
 }
 
+export async function classifyDocTypeByText(text: string): Promise<ClassifyDocTypeResponse> {
+  const res = await fetch(`${API}/llm/classify-doc-type`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// --- Text-based extraction helpers (used by wizard) ---
+
+export async function llmExtractRadiologyByText(text: string): Promise<RadiologyExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-radiology`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function llmExtractRadiotherapyByText(text: string): Promise<RadiotherapyExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-radiotherapy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function llmExtractPathologyByText(text: string): Promise<PathologyExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-pathology`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function llmExtractSurgeryByText(text: string): Promise<SurgeryExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-surgery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function llmExtractSarcomaBoardByText(text: string): Promise<SarcomaBoardExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-sarcoma-board`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function llmExtractSystemicTherapyByText(text: string): Promise<SystemicTherapyExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-systemic-therapy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 // ============================================================================
 // RADIOTHERAPY EXTRACTION
 // ============================================================================
