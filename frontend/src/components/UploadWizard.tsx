@@ -86,6 +86,10 @@ export default function UploadWizard({ onResults }: Props) {
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
 
+  // Ref to always access the latest docs (avoids stale closures in async callbacks)
+  const docsRef = useRef(docs);
+  docsRef.current = docs;
+
   // --- Phase: Upload ---
 
   const addFiles = useCallback(async (fileList: FileList | null) => {
@@ -123,19 +127,20 @@ export default function UploadWizard({ onResults }: Props) {
 
   const currentDoc = docs[currentIdx];
 
-  const extractTextForCurrent = useCallback(async () => {
-    const doc = docs[currentIdx];
-    if (!doc || doc.status !== "pending") return;
+  // Parameterized extraction — no closure over docs/currentIdx
+  const extractTextAt = useCallback(async (idx: number) => {
+    const doc = docsRef.current[idx];
+    if (!doc || (doc.status !== "pending" && doc.status !== "error")) return;
 
     setDocs((prev) =>
-      prev.map((d, i) => (i === currentIdx ? { ...d, status: "extracting" as const, error: undefined } : d))
+      prev.map((d, i) => (i === idx ? { ...d, status: "extracting" as const, error: undefined } : d))
     );
 
     try {
       const res = await uploadPdfWithText(doc.file);
       setDocs((prev) =>
         prev.map((d, i) =>
-          i === currentIdx
+          i === idx
             ? {
                 ...d,
                 docId: res.id,
@@ -149,25 +154,25 @@ export default function UploadWizard({ onResults }: Props) {
     } catch (e: any) {
       setDocs((prev) =>
         prev.map((d, i) =>
-          i === currentIdx
+          i === idx
             ? { ...d, status: "error" as const, error: e?.message ?? "Textextraktion fehlgeschlagen" }
             : d
         )
       );
     }
-  }, [currentIdx, docs]);
+  }, []);
 
   // Auto-extract text when entering a wizard step
   useEffect(() => {
     if (phase !== "wizard") return;
-    const doc = docs[currentIdx];
+    const doc = docsRef.current[currentIdx];
     if (doc && doc.status === "pending") {
-      extractTextForCurrent();
+      extractTextAt(currentIdx);
     }
-  }, [phase, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [phase, currentIdx, extractTextAt]);
 
   const confirmAndNext = useCallback(async () => {
-    const doc = docs[currentIdx];
+    const doc = docsRef.current[currentIdx];
     if (!doc || !doc.patientId.trim() || !doc.extractedText) return;
 
     // Capture values before async gap
@@ -191,16 +196,14 @@ export default function UploadWizard({ onResults }: Props) {
       }
     }
 
-    // Navigate using fresh state
-    setDocs((prev) => {
-      if (idx < prev.length - 1) {
-        setCurrentIdx(idx + 1);
-      } else {
-        setPhase("summary");
-      }
-      return prev;
-    });
-  }, [currentIdx, docs]);
+    // Navigate using fresh docs length from ref (not stale closure)
+    const freshLength = docsRef.current.length;
+    if (idx < freshLength - 1) {
+      setCurrentIdx(idx + 1);
+    } else {
+      setPhase("summary");
+    }
+  }, [currentIdx]);
 
   const updatePatientId = (value: string) => {
     setDocs((prev) =>
@@ -404,7 +407,7 @@ export default function UploadWizard({ onResults }: Props) {
             <Alert severity="error" icon={<ErrorOutlineIcon />}>
               {currentDoc.error}
             </Alert>
-            <Button variant="outlined" startIcon={<ReplayIcon />} onClick={extractTextForCurrent}>
+            <Button variant="outlined" startIcon={<ReplayIcon />} onClick={() => extractTextAt(currentIdx)}>
               Erneut versuchen
             </Button>
           </Stack>
@@ -527,6 +530,12 @@ export default function UploadWizard({ onResults }: Props) {
             </tbody>
           </table>
         </Box>
+
+        {docs.some((d) => !d.docType) && (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Einige Dokumente haben keinen Dokumenttyp. Bitte waehlen Sie den Typ manuell aus, bevor Sie fortfahren.
+          </Alert>
+        )}
 
         <Stack direction="row" spacing={2} justifyContent="space-between" mt={3}>
           <Button
