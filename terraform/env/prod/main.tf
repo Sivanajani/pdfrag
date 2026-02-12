@@ -29,7 +29,7 @@ module "vm" {
   frontend_virtual_host     = "shaperag.com,www.shaperag.com"
   frontend_letsencrypt_host = "shaperag.com,www.shaperag.com"
   letsencrypt_email         = var.notify-email
-
+  gemini_secret_name = "gemini_api_key_prod"
 }
 
 module "policy" {

@@ -70,3 +70,7 @@ variable "frontend_letsencrypt_host" {
 variable "letsencrypt_email" {
   type = string
 }
+
+variable "gemini_secret_name" {
+  type = string
+}
