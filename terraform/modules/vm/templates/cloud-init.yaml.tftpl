@@ -48,6 +48,8 @@ write_files:
 
         backend:
           image: europe-west6-docker.pkg.dev/${project_id}/${project_name}/${project_name}-backend:${image_tag}
+          env_file:
+            - /etc/pdfrag/env
           environment:
             PYTHONUNBUFFERED: "1"
             HOST: "0.0.0.0"
