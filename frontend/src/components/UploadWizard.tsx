@@ -1,7 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Paper, Stack, Typography, Button, TextField, CircularProgress,
-  Alert, Box, LinearProgress, Chip, IconButton,
+  Alert, Box, LinearProgress, Chip, IconButton, MenuItem, Select
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -31,6 +31,15 @@ import {
 
 const MAX_FILES = 10;
 const PREVIEW_CHARS = 5000;
+
+const DOC_TYPE_OPTIONS: { value: DocType; label: string }[] = [
+  { value: "radiology", label: "Radiologie" },
+  { value: "radiotherapy", label: "Strahlentherapie" },
+  { value: "pathology", label: "Pathologie" },
+  { value: "surgery", label: "Chirurgie" },
+  { value: "sarcoma_board", label: "Sarkom-Board" },
+  { value: "systemic_therapy", label: "Systemische Therapie" },
+];
 
 type WizardDoc = {
   file: File;
@@ -148,6 +157,15 @@ export default function UploadWizard({ onResults }: Props) {
     }
   }, [currentIdx, docs]);
 
+  // Auto-extract text when entering a wizard step
+  useEffect(() => {
+    if (phase !== "wizard") return;
+    const doc = docs[currentIdx];
+    if (doc && doc.status === "pending") {
+      extractTextForCurrent();
+    }
+  }, [phase, currentIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const confirmAndNext = useCallback(async () => {
     const doc = docs[currentIdx];
     if (!doc || !doc.patientId.trim() || !doc.extractedText) return;
@@ -156,37 +174,43 @@ export default function UploadWizard({ onResults }: Props) {
     const idx = currentIdx;
     const text = doc.extractedText;
 
-    // Classify doc type
-    setIsClassifying(true);
-
-    let classifiedType: DocType;
-    try {
-      const classifyRes = await classifyDocTypeByText(text);
-      classifiedType = classifyRes.doc_type;
-    } catch {
-      classifiedType = "radiology" as DocType;
-    } finally {
-      setIsClassifying(false);
+    // Auto-classify doc type (skip if already set)
+    if (!doc.docType) {
+      setIsClassifying(true);
+      try {
+        const classifyRes = await classifyDocTypeByText(text);
+        setDocs((prev) =>
+          prev.map((d, i) =>
+            i === idx ? { ...d, docType: classifyRes.doc_type } : d
+          )
+        );
+      } catch {
+        // Classification failed — user can fix it in summary
+      } finally {
+        setIsClassifying(false);
+      }
     }
 
-    // Update doc type and navigate using fresh state
+    // Navigate using fresh state
     setDocs((prev) => {
-      const updated = prev.map((d, i) =>
-        i === idx ? { ...d, docType: classifiedType } : d
-      );
-      // Navigate based on current (fresh) docs length
-      if (idx < updated.length - 1) {
+      if (idx < prev.length - 1) {
         setCurrentIdx(idx + 1);
       } else {
         setPhase("summary");
       }
-      return updated;
+      return prev;
     });
   }, [currentIdx, docs]);
 
   const updatePatientId = (value: string) => {
     setDocs((prev) =>
       prev.map((d, i) => (i === currentIdx ? { ...d, patientId: value } : d))
+    );
+  };
+
+  const updateDocType = (idx: number, value: DocType) => {
+    setDocs((prev) =>
+      prev.map((d, i) => (i === idx ? { ...d, docType: value } : d))
     );
   };
 
@@ -360,17 +384,8 @@ export default function UploadWizard({ onResults }: Props) {
           sx={{ mb: 3, borderRadius: 1 }}
         />
 
-        {/* Text extraction */}
-        {currentDoc.status === "pending" && (
-          <Stack spacing={2} alignItems="center" py={4}>
-            <Typography variant="body1">Text aus PDF extrahieren</Typography>
-            <Button variant="contained" onClick={extractTextForCurrent}>
-              Text extrahieren
-            </Button>
-          </Stack>
-        )}
-
-        {currentDoc.status === "extracting" && (
+        {/* Text extraction (auto-triggered) */}
+        {(currentDoc.status === "pending" || currentDoc.status === "extracting") && (
           <Stack spacing={2} alignItems="center" py={4}>
             <CircularProgress />
             <Typography variant="body2">Extrahiere Text aus PDF...</Typography>
@@ -420,12 +435,6 @@ export default function UploadWizard({ onResults }: Props) {
                 </Typography>
               )}
             </Paper>
-
-            {currentDoc.docType && (
-              <Alert severity="info" sx={{ mt: 1 }}>
-                Erkannter Dokumenttyp: <strong>{currentDoc.docType}</strong>
-              </Alert>
-            )}
 
             {/* Patient ID Input */}
             <TextField
@@ -497,7 +506,18 @@ export default function UploadWizard({ onResults }: Props) {
                     <Chip label={doc.patientId} size="small" color="primary" />
                   </td>
                   <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
-                    <Chip label={doc.docType || "?"} size="small" variant="outlined" />
+                    <Select
+                      value={doc.docType || ""}
+                      size="small"
+                      onChange={(e) => updateDocType(idx, e.target.value as DocType)}
+                      sx={{ minWidth: 160 }}
+                    >
+                      {DOC_TYPE_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
                   </td>
                   <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
                     {doc.extractedText?.length?.toLocaleString() ?? "–"} Zeichen
@@ -519,6 +539,7 @@ export default function UploadWizard({ onResults }: Props) {
             variant="contained"
             size="large"
             onClick={extractAll}
+            disabled={docs.some((d) => !d.docType)}
           >
             Jetzt extrahieren ({docs.length} Dokumente)
           </Button>

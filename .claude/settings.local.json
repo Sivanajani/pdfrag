@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(cmd.exe /c \"cd /d c:\\\\Users\\\\sivan\\\\Documents\\\\NTech\\\\RAG\\\\pdfrag\\\\rag-mvp\\\\frontend && npx tsc --noEmit 2>&1\")"
     ]
   }
 }
