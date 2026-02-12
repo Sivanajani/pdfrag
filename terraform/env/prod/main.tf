@@ -26,6 +26,10 @@ module "vm" {
   project-id = var.project-id
   zone = var.zone
   vm-service-account-email = var.vm-service-account-email
+  frontend_virtual_host     = "shaperag.com,www.shaperag.com"
+  frontend_letsencrypt_host = "shaperag.com,www.shaperag.com"
+  letsencrypt_email         = var.notify-email
+
 }
 
 module "policy" {
