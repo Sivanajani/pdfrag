@@ -570,3 +570,22 @@ export async function llmExtractSystemicTherapyByDocId(docId: string): Promise<S
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+// ============================================================================
+// COMBINED CLASSIFY + EXTRACT (single HTTP call)
+// ============================================================================
+
+export type ClassifyAndExtractResponse = {
+  doc_type: DocType
+  events: any[]
+}
+
+export async function classifyAndExtractByText(text: string): Promise<ClassifyAndExtractResponse> {
+  const res = await fetch(`${API}/llm/classify-and-extract`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}

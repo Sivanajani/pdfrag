@@ -1171,3 +1171,29 @@ BEISPIELE:
         return []
 
     return data
+
+
+def classify_and_extract_from_text(text: str) -> Dict[str, Any]:
+    """
+    Kombiniert Klassifikation und Extraktion in einem Backend-Call.
+    Intern: 1 schneller classify-Call + 1 extract-Call basierend auf Ergebnis.
+    Spart dem Frontend einen separaten HTTP-Roundtrip.
+
+    Returns:
+        {"doc_type": str, "events": List[Dict]}
+    """
+    doc_type = classify_document_type(text)
+
+    extractor_map = {
+        "radiology": extract_radiology_events_from_text,
+        "radiotherapy": extract_radiotherapy_events_from_text,
+        "pathology": extract_pathology_events_from_text,
+        "surgery": extract_surgery_events_from_text,
+        "sarcoma_board": extract_sarcoma_board_events_from_text,
+        "systemic_therapy": extract_systemic_therapy_events_from_text,
+    }
+
+    extractor = extractor_map.get(doc_type, extract_radiology_events_from_text)
+    events = extractor(text)
+
+    return {"doc_type": doc_type, "events": events}

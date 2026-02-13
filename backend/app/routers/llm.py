@@ -17,6 +17,7 @@ from app.services.gemini_client import (
     extract_sarcoma_board_events_from_text,
     extract_systemic_therapy_events_from_text,
     classify_document_type,
+    classify_and_extract_from_text,
 )
 
 from app.schemas.radiology import RadiologyEvent
@@ -260,3 +261,23 @@ async def llm_extract_systemic_therapy(payload: _DocOrTextRequest):
 
     events = _parse_events_tolerant(raw_list, SystemicTherapyEvent)
     return SystemicTherapyExtractResponse(events=events)
+
+
+# --- Combined Classify + Extract ---
+
+class ClassifyAndExtractResponse(BaseModel):
+    doc_type: str
+    events: List[Dict[str, Any]]
+
+
+@router.post("/llm/classify-and-extract", response_model=ClassifyAndExtractResponse)
+async def llm_classify_and_extract(payload: _DocOrTextRequest):
+    raw_text = _resolve_text(payload)
+
+    try:
+        result = classify_and_extract_from_text(raw_text)
+    except Exception:
+        logger.exception("Classify-and-Extract fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Fehler bei Classify-and-Extract.")
+
+    return ClassifyAndExtractResponse(doc_type=result["doc_type"], events=result["events"])

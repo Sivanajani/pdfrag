@@ -13,7 +13,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import {
   uploadPdfWithText,
-  classifyDocTypeByText,
+  classifyAndExtractByText,
   llmExtractRadiologyByText,
   llmExtractRadiotherapyByText,
   llmExtractPathologyByText,
@@ -48,7 +48,9 @@ type WizardDoc = {
   extractedText?: string;
   previewText?: string;
   patientId: string;
-  docType?: DocType;
+  detectedDocType?: DocType;
+  overrideDocType?: DocType;
+  extractedEvents?: any[];
   status: "pending" | "extracting" | "ready" | "error";
   error?: string;
 };
@@ -84,11 +86,48 @@ export default function UploadWizard({ onResults }: Props) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [processingIdx, setProcessingIdx] = useState(-1);
   const [processingError, setProcessingError] = useState<string | null>(null);
-  const [isClassifying, setIsClassifying] = useState(false);
+  const [reExtractingIdx, setReExtractingIdx] = useState(-1);
 
   // Ref to always access the latest docs (avoids stale closures in async callbacks)
   const docsRef = useRef(docs);
   docsRef.current = docs;
+
+  // --- Helper: build ExtractionResults from all docs ---
+
+  const buildResults = useCallback((docsList: WizardDoc[]): ExtractionResults => {
+    const results: ExtractionResults = {
+      radiologyEvents: [],
+      radiotherapyEvents: [],
+      pathologyEvents: [],
+      surgeryEvents: [],
+      sarcomaBoardEvents: [],
+      systemicTherapyEvents: [],
+    };
+
+    for (const doc of docsList) {
+      const docType = doc.overrideDocType || doc.detectedDocType;
+      const events = doc.extractedEvents;
+      if (!docType || !events) continue;
+
+      const pid = doc.patientId.trim();
+
+      if (docType === "radiology") {
+        results.radiologyEvents.push(...events.map((e) => ({ ...e, patient_id: pid as any })));
+      } else if (docType === "radiotherapy") {
+        results.radiotherapyEvents.push(...events.map((e) => ({ ...e, patient_id: pid as any })));
+      } else if (docType === "pathology") {
+        results.pathologyEvents.push(...events.map((e) => ({ ...e, patient_id: pid as any })));
+      } else if (docType === "surgery") {
+        results.surgeryEvents.push(...events.map((e) => ({ ...e, patient_id: pid as any })));
+      } else if (docType === "sarcoma_board") {
+        results.sarcomaBoardEvents.push(...events.map((e) => ({ ...e, patient_id: pid as any })));
+      } else if (docType === "systemic_therapy") {
+        results.systemicTherapyEvents.push(...events.map((e) => ({ ...e, patient_id: pid as any })));
+      }
+    }
+
+    return results;
+  }, []);
 
   // --- Phase: Upload ---
 
@@ -175,28 +214,9 @@ export default function UploadWizard({ onResults }: Props) {
     const doc = docsRef.current[currentIdx];
     if (!doc || !doc.patientId.trim() || !doc.extractedText) return;
 
-    // Capture values before async gap
     const idx = currentIdx;
-    const text = doc.extractedText;
 
-    // Auto-classify doc type (skip if already set)
-    if (!doc.docType) {
-      setIsClassifying(true);
-      try {
-        const classifyRes = await classifyDocTypeByText(text);
-        setDocs((prev) =>
-          prev.map((d, i) =>
-            i === idx ? { ...d, docType: classifyRes.doc_type } : d
-          )
-        );
-      } catch {
-        // Classification failed — user can fix it in summary
-      } finally {
-        setIsClassifying(false);
-      }
-    }
-
-    // Navigate using fresh docs length from ref (not stale closure)
+    // No LLM call here — just navigate to next doc or summary
     const freshLength = docsRef.current.length;
     if (idx < freshLength - 1) {
       setCurrentIdx(idx + 1);
@@ -211,83 +231,101 @@ export default function UploadWizard({ onResults }: Props) {
     );
   };
 
-  const updateDocType = (idx: number, value: DocType) => {
-    setDocs((prev) =>
-      prev.map((d, i) => (i === idx ? { ...d, docType: value } : d))
-    );
-  };
-
   // --- Phase: Processing ---
 
   const extractAll = useCallback(async () => {
     setPhase("processing");
     setProcessingError(null);
 
-    const results: ExtractionResults = {
-      radiologyEvents: [],
-      radiotherapyEvents: [],
-      pathologyEvents: [],
-      surgeryEvents: [],
-      sarcomaBoardEvents: [],
-      systemicTherapyEvents: [],
-    };
+    const updatedDocs = [...docsRef.current];
 
-    for (let i = 0; i < docs.length; i++) {
+    for (let i = 0; i < updatedDocs.length; i++) {
       setProcessingIdx(i);
-      const doc = docs[i];
-      if (!doc.extractedText || !doc.docType) continue;
+      const doc = updatedDocs[i];
+      if (!doc.extractedText) continue;
 
       try {
-        const pid = doc.patientId.trim();
-        const text = doc.extractedText;
-
-        if (doc.docType === "radiology") {
-          const res = await llmExtractRadiologyByText(text);
-          results.radiologyEvents.push(
-            ...res.events.map((e) => ({ ...e, patient_id: pid as any }))
-          );
-        } else if (doc.docType === "radiotherapy") {
-          const res = await llmExtractRadiotherapyByText(text);
-          results.radiotherapyEvents.push(
-            ...res.events.map((e) => ({ ...e, patient_id: pid as any }))
-          );
-        } else if (doc.docType === "pathology") {
-          const res = await llmExtractPathologyByText(text);
-          results.pathologyEvents.push(
-            ...res.events.map((e) => ({ ...e, patient_id: pid as any }))
-          );
-        } else if (doc.docType === "surgery") {
-          const res = await llmExtractSurgeryByText(text);
-          results.surgeryEvents.push(
-            ...res.events.map((e) => ({ ...e, patient_id: pid as any }))
-          );
-        } else if (doc.docType === "sarcoma_board") {
-          const res = await llmExtractSarcomaBoardByText(text);
-          results.sarcomaBoardEvents.push(
-            ...res.events.map((e) => ({ ...e, patient_id: pid as any }))
-          );
-        } else if (doc.docType === "systemic_therapy") {
-          const res = await llmExtractSystemicTherapyByText(text);
-          results.systemicTherapyEvents.push(
-            ...res.events.map((e) => ({ ...e, patient_id: pid as any }))
-          );
-        }
+        const result = await classifyAndExtractByText(doc.extractedText);
+        updatedDocs[i] = {
+          ...updatedDocs[i],
+          detectedDocType: result.doc_type,
+          extractedEvents: result.events,
+        };
+        setDocs([...updatedDocs]);
       } catch (e: any) {
         setProcessingError(`Fehler bei "${doc.file.name}": ${e?.message ?? "Unbekannter Fehler"}`);
-        // Continue with next document
       }
     }
 
     setProcessingIdx(-1);
-    onResults(results);
+    setDocs([...updatedDocs]);
+    onResults(buildResults(updatedDocs));
     setPhase("done");
-  }, [docs, onResults]);
+  }, [onResults, buildResults]);
+
+  // --- Re-extraction for a single document ---
+
+  const reExtractDoc = useCallback(async (idx: number) => {
+    const doc = docsRef.current[idx];
+    if (!doc || !doc.extractedText) return;
+
+    const docType = doc.overrideDocType || doc.detectedDocType;
+    if (!docType) return;
+
+    setReExtractingIdx(idx);
+
+    try {
+      let events: any[];
+
+      if (docType === "radiology") {
+        const res = await llmExtractRadiologyByText(doc.extractedText);
+        events = res.events;
+      } else if (docType === "radiotherapy") {
+        const res = await llmExtractRadiotherapyByText(doc.extractedText);
+        events = res.events;
+      } else if (docType === "pathology") {
+        const res = await llmExtractPathologyByText(doc.extractedText);
+        events = res.events;
+      } else if (docType === "surgery") {
+        const res = await llmExtractSurgeryByText(doc.extractedText);
+        events = res.events;
+      } else if (docType === "sarcoma_board") {
+        const res = await llmExtractSarcomaBoardByText(doc.extractedText);
+        events = res.events;
+      } else if (docType === "systemic_therapy") {
+        const res = await llmExtractSystemicTherapyByText(doc.extractedText);
+        events = res.events;
+      } else {
+        return;
+      }
+
+      setDocs((prev) => {
+        const updated = prev.map((d, i) =>
+          i === idx ? { ...d, extractedEvents: events, detectedDocType: doc.overrideDocType || doc.detectedDocType } : d
+        );
+        // Fire onResults with the updated doc list
+        onResults(buildResults(updated));
+        return updated;
+      });
+    } catch (e: any) {
+      setProcessingError(`Re-Extraktion fehlgeschlagen fuer "${doc.file.name}": ${e?.message ?? "Unbekannter Fehler"}`);
+    } finally {
+      setReExtractingIdx(-1);
+    }
+  }, [onResults, buildResults]);
+
+  const updateOverrideDocType = (idx: number, value: DocType) => {
+    setDocs((prev) =>
+      prev.map((d, i) => (i === idx ? { ...d, overrideDocType: value } : d))
+    );
+  };
 
   const resetWizard = () => {
     setDocs([]);
     setCurrentIdx(0);
     setProcessingIdx(-1);
     setProcessingError(null);
+    setReExtractingIdx(-1);
     setPhase("upload");
   };
 
@@ -395,13 +433,6 @@ export default function UploadWizard({ onResults }: Props) {
           </Stack>
         )}
 
-        {isClassifying && (
-          <Stack spacing={2} alignItems="center" py={4}>
-            <CircularProgress />
-            <Typography variant="body2">Klassifiziere Dokumenttyp...</Typography>
-          </Stack>
-        )}
-
         {currentDoc.status === "error" && (
           <Stack spacing={2} alignItems="center" py={4}>
             <Alert severity="error" icon={<ErrorOutlineIcon />}>
@@ -420,7 +451,7 @@ export default function UploadWizard({ onResults }: Props) {
             <Paper
               variant="outlined"
               sx={{
-                p: 2,                
+                p: 2,
                 color: "text.primary",
                 maxHeight: 300,
                 overflow: "auto",
@@ -467,7 +498,7 @@ export default function UploadWizard({ onResults }: Props) {
                 variant="contained"
                 endIcon={currentIdx < docs.length - 1 ? <ArrowForwardIcon /> : <CheckCircleIcon />}
                 onClick={confirmAndNext}
-                disabled={!currentDoc.patientId.trim() || isClassifying}
+                disabled={!currentDoc.patientId.trim()}
               >
                 {currentIdx < docs.length - 1
                   ? "Bestaetigen & Weiter"
@@ -486,7 +517,7 @@ export default function UploadWizard({ onResults }: Props) {
       <Paper variant="outlined" sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>Zusammenfassung</Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Alle Dokumente wurden vorbereitet. Klicken Sie auf "Jetzt extrahieren" um die Datenextraktion zu starten.
+          Alle Dokumente wurden vorbereitet. Dokumenttyp wird automatisch erkannt. Klicken Sie auf "Jetzt extrahieren" um die Datenextraktion zu starten.
         </Typography>
 
         <Box sx={{ overflowX: "auto", mt: 2 }}>
@@ -509,18 +540,7 @@ export default function UploadWizard({ onResults }: Props) {
                     <Chip label={doc.patientId} size="small" color="primary" />
                   </td>
                   <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
-                    <Select
-                      value={doc.docType || ""}
-                      size="small"
-                      onChange={(e) => updateDocType(idx, e.target.value as DocType)}
-                      sx={{ minWidth: 160 }}
-                    >
-                      {DOC_TYPE_OPTIONS.map((opt) => (
-                        <MenuItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                    <Chip label="Auto (wird erkannt)" size="small" variant="outlined" />
                   </td>
                   <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
                     {doc.extractedText?.length?.toLocaleString() ?? "–"} Zeichen
@@ -530,12 +550,6 @@ export default function UploadWizard({ onResults }: Props) {
             </tbody>
           </table>
         </Box>
-
-        {docs.some((d) => !d.docType) && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            Einige Dokumente haben keinen Dokumenttyp. Bitte waehlen Sie den Typ manuell aus, bevor Sie fortfahren.
-          </Alert>
-        )}
 
         <Stack direction="row" spacing={2} justifyContent="space-between" mt={3}>
           <Button
@@ -548,7 +562,6 @@ export default function UploadWizard({ onResults }: Props) {
             variant="contained"
             size="large"
             onClick={extractAll}
-            disabled={docs.some((d) => !d.docType)}
           >
             Jetzt extrahieren ({docs.length} Dokumente)
           </Button>
@@ -561,7 +574,7 @@ export default function UploadWizard({ onResults }: Props) {
   if (phase === "processing") {
     return (
       <Paper variant="outlined" sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>Daten werden extrahiert...</Typography>
+        <Typography variant="h6" gutterBottom>Daten werden klassifiziert & extrahiert...</Typography>
         <LinearProgress
           variant="determinate"
           value={processingIdx >= 0 ? ((processingIdx + 1) / docs.length) * 100 : 0}
@@ -582,7 +595,10 @@ export default function UploadWizard({ onResults }: Props) {
                 variant="body2"
                 color={idx === processingIdx ? "primary" : idx < processingIdx ? "text.secondary" : "text.disabled"}
               >
-                {doc.file.name} (PID: {doc.patientId}, Typ: {doc.docType})
+                {doc.file.name} (PID: {doc.patientId})
+                {idx < processingIdx && doc.detectedDocType && (
+                  <Chip label={DOC_TYPE_OPTIONS.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType} size="small" sx={{ ml: 1 }} />
+                )}
               </Typography>
             </Stack>
           ))}
@@ -595,22 +611,95 @@ export default function UploadWizard({ onResults }: Props) {
     );
   }
 
-  // Phase: Done
+  // Phase: Done — with re-extraction UI
   if (phase === "done") {
     return (
       <Paper variant="outlined" sx={{ p: 3 }}>
-        <Stack spacing={2} alignItems="center">
-          <CheckCircleIcon color="success" sx={{ fontSize: 48 }} />
-          <Typography variant="h6">Extraktion abgeschlossen</Typography>
+        <Stack spacing={2}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <CheckCircleIcon color="success" sx={{ fontSize: 32 }} />
+            <Typography variant="h6">Extraktion abgeschlossen</Typography>
+          </Stack>
           <Typography variant="body2" color="text.secondary">
-            {docs.length} Dokument(e) verarbeitet. Ergebnisse werden unten angezeigt.
+            {docs.length} Dokument(e) verarbeitet. Falls ein Dokumenttyp falsch erkannt wurde, koennen Sie ihn manuell aendern und das Dokument neu extrahieren.
           </Typography>
+
           {processingError && (
-            <Alert severity="warning" sx={{ width: "100%" }}>{processingError}</Alert>
+            <Alert severity="warning">{processingError}</Alert>
           )}
-          <Button variant="outlined" onClick={resetWizard}>
-            Neuen Wizard starten
-          </Button>
+
+          <Box sx={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>#</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Dateiname</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>PID</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Erkannter Typ</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Typ aendern</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Events</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {docs.map((doc, idx) => {                  
+                  const isOverridden = doc.overrideDocType && doc.overrideDocType !== doc.detectedDocType;
+
+                  return (
+                    <tr key={idx}>
+                      <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{idx + 1}</td>
+                      <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>{doc.file.name}</td>
+                      <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+                        <Chip label={doc.patientId} size="small" color="primary" />
+                      </td>
+                      <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+                        <Chip
+                          label={DOC_TYPE_OPTIONS.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType ?? "–"}
+                          size="small"
+                          color={isOverridden ? "default" : "success"}
+                          variant={isOverridden ? "outlined" : "filled"}
+                        />
+                      </td>
+                      <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+                        <Select
+                          value={doc.overrideDocType || doc.detectedDocType || ""}
+                          size="small"
+                          onChange={(e) => updateOverrideDocType(idx, e.target.value as DocType)}
+                          sx={{ minWidth: 160 }}
+                        >
+                          {DOC_TYPE_OPTIONS.map((opt) => (
+                            <MenuItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </td>
+                      <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+                        {doc.extractedEvents?.length ?? 0}
+                      </td>
+                      <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={reExtractingIdx === idx ? <CircularProgress size={14} /> : <ReplayIcon />}
+                          onClick={() => reExtractDoc(idx)}
+                          disabled={reExtractingIdx >= 0}
+                        >
+                          Neu extrahieren
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Box>
+
+          <Stack direction="row" spacing={2} justifyContent="flex-end">
+            <Button variant="outlined" onClick={resetWizard}>
+              Neuen Wizard starten
+            </Button>
+          </Stack>
         </Stack>
       </Paper>
     );
