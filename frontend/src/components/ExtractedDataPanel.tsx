@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Paper, Typography, Stack, Button, Alert, CircularProgress, Box, Table, TableHead, TableRow, TableCell, TableBody, TextField } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import * as XLSX from 'xlsx';
+import { csvValue, buildCsv } from '../utils/csv';
 import type {
   RadiologyEvent,
   RadiotherapyEvent,
@@ -11,22 +12,8 @@ import type {
   SystemicTherapyEvent,
 } from '../api';
 
-function csvValue(val: any, key?: string): string {
-  if (val === null || val === undefined) return "";
-  if (key === "drugs" && Array.isArray(val))
-    return val.map((d: any) => `${d.drug_type} ${d.dose ?? ""}${d.dose_unit ?? ""}`).join("; ");
-  if (key === "adverse_events" && Array.isArray(val))
-    return val.map((ae: any) => `${ae.event_type} Grade ${ae.grade}`).join("; ");
-  if (Array.isArray(val)) return val.join(", ");
-  if (typeof val === "boolean") return val ? "true" : "false";
-  return String(val);
-}
-
 function downloadCsv(headers: string[], rows: any[], filename: string) {
-  const csvRows = rows.map((r) =>
-    headers.map((h) => `"${csvValue((r as any)[h], h).replace(/"/g, '""')}"`).join(",")
-  );
-  const csv = [headers.join(","), ...csvRows].join("\n");
+  const csv = buildCsv(headers, rows);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
