@@ -1,12 +1,14 @@
 import { IconButton, Tooltip } from '@mui/material'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import LightModeIcon from '@mui/icons-material/LightMode'
+import { useTranslation } from 'react-i18next'
 
 
 export default function ThemeToggle({ mode, onToggle }: { mode: 'light' | 'dark'; onToggle: () => void }) {
+    const { t } = useTranslation()
     const isDark = mode === 'dark'
     return (
-    <Tooltip title={isDark ? 'Helles Thema' : 'Dunkles Thema'}>
+    <Tooltip title={isDark ? t('theme.light') : t('theme.dark')}>
         <IconButton color="inherit" onClick={onToggle} size="small" sx={{ border: 1, borderColor: 'divider', borderRadius: 2 }}>
             {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
         </IconButton>

@@ -5,6 +5,7 @@ import { useColorScheme } from './hooks/useColorScheme'
 import AppHeader from './components/Header'
 import UploadWizard, { type ExtractionResults } from './components/UploadWizard'
 import ExtractedDataPanel from './components/ExtractedDataPanel'
+import { useTranslation } from 'react-i18next'
 import type {
   RadiologyEvent,
   RadiotherapyEvent,
@@ -15,6 +16,7 @@ import type {
 } from "./api";
 
 export default function App() {
+  const { t } = useTranslation()
   const { mode, setMode } = useColorScheme()
   const theme = useMemo(() => makeTheme(mode), [mode])
 
@@ -72,7 +74,7 @@ export default function App() {
 
         <Box component="footer" sx={{ borderTop: 1, borderColor: 'divider', py: 2 }}>
           <Container maxWidth="lg" sx={{ fontSize: 12, opacity: 0.7 }}>
-            &copy; {new Date().getFullYear()} RAG-MVP &middot; Proof of Concept
+            &copy; {new Date().getFullYear()} RAG-MVP &middot; {t('footerPoc')}
           </Container>
         </Box>
       </Box>

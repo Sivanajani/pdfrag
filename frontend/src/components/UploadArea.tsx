@@ -4,6 +4,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import { useTranslation } from "react-i18next";
 import type { UploadedFile } from "../types/files";
 
 import {
@@ -20,6 +21,7 @@ export default function UploadArea({
   onFilesAdded: (files: UploadedFile[]) => void;
   onTextExtracted?: (payload: UploadWithTextResponse) => void;
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -45,7 +47,7 @@ export default function UploadArea({
 
       const files = filterPdfFiles(Array.from(fileList));
       if (files.length === 0) {
-        setError("Bitte nur PDF-Dateien hochladen.");
+        setError(t("uploadArea.onlyPdf"));
         return;
       }
 
@@ -57,7 +59,7 @@ export default function UploadArea({
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           const isFirst = i === 0;
-          setUploadProgress(`Verarbeite ${i + 1} / ${files.length}: ${file.name}`);
+          setUploadProgress(t("uploadArea.processingFile", { current: i + 1, total: files.length, name: file.name }));
 
           let finalDocType = docType;
 
@@ -85,7 +87,7 @@ export default function UploadArea({
         setSuccess(true);
         setUploadProgress(null);
       } catch (e: any) {
-        setError(e?.message ?? "Unbekannter Fehler beim Upload");
+        setError(e?.message ?? t("uploadArea.uploadErrorUnknown"));
       } finally {
         setIsUploading(false);
         setIsDetecting(false);
@@ -93,7 +95,7 @@ export default function UploadArea({
         if (inputRef.current) inputRef.current.value = "";
       }
     },
-    [onFilesAdded, onTextExtracted, docType, autoDetect]
+    [onFilesAdded, onTextExtracted, docType, autoDetect, t]
   );
 
   return (
@@ -119,16 +121,16 @@ export default function UploadArea({
           handleFiles(e.dataTransfer.files);
         }}
         role="region"
-        aria-label="PDF Upload Bereich"
+        aria-label={t("uploadArea.dropTitle")}
       >
         <Stack spacing={2} alignItems="center" maxWidth={520} mx="auto">
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3 }}>
             <CloudUploadIcon />
           </Paper>
 
-          <Typography variant="h6">PDFs hierher ziehen oder auswählen</Typography>
+          <Typography variant="h6">{t("uploadArea.dropTitle")}</Typography>
           <Typography variant="body2" color="text.secondary">
-            Mehrere Dateien möglich. Es werden nur PDF-Dateien akzeptiert.
+            {t("uploadArea.dropHint")}
           </Typography>
 
           <FormControlLabel
@@ -142,7 +144,7 @@ export default function UploadArea({
             label={
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <AutoFixHighIcon fontSize="small" />
-                <Typography variant="body2">Auto-Detect Dokumenttyp</Typography>
+                <Typography variant="body2">{t("uploadArea.autoDetect")}</Typography>
               </Stack>
             }
           />
@@ -151,7 +153,7 @@ export default function UploadArea({
             <Alert severity="info" sx={{ mt: 1 }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <CircularProgress size={16} />
-                <Typography variant="body2">Erkenne Dokumenttyp...</Typography>
+                <Typography variant="body2">{t("uploadArea.detecting")}</Typography>
               </Stack>
             </Alert>
           )}
@@ -163,7 +165,7 @@ export default function UploadArea({
               onClick={() => setDocType("radiology")}
               disabled={isUploading}
             >
-              Radiology
+              {t("docType.radiology")}
             </Button>
             <Button
               size="small"
@@ -171,7 +173,7 @@ export default function UploadArea({
               onClick={() => setDocType("radiotherapy")}
               disabled={isUploading}
             >
-              Radiotherapy
+              {t("docType.radiotherapy")}
             </Button>
             <Button
               size="small"
@@ -179,7 +181,7 @@ export default function UploadArea({
               onClick={() => setDocType("pathology")}
               disabled={isUploading}
             >
-              Pathology
+              {t("docType.pathology")}
             </Button>
             <Button
               size="small"
@@ -187,7 +189,7 @@ export default function UploadArea({
               onClick={() => setDocType("surgery")}
               disabled={isUploading}
             >
-              Surgery
+              {t("docType.surgery")}
             </Button>
             <Button
               size="small"
@@ -195,7 +197,7 @@ export default function UploadArea({
               onClick={() => setDocType("sarcoma_board")}
               disabled={isUploading}
             >
-              Sarcoma Board
+              {t("docType.sarcoma_board")}
             </Button>
             <Button
               size="small"
@@ -203,18 +205,18 @@ export default function UploadArea({
               onClick={() => setDocType("systemic_therapy")}
               disabled={isUploading}
             >
-              Systemic Therapy
+              {t("docType.systemic_therapy")}
             </Button>
           </Stack>
 
           {!autoDetect && (
             <Typography variant="caption" color="text.secondary">
-              Ausgewählt: <strong>{docType}</strong>
+              {t("uploadArea.selected")}: <strong>{t(`docType.${docType}`)}</strong>
             </Typography>
           )}
           {autoDetect && (
             <Typography variant="caption" color="primary">
-              Auto-Detect aktiviert - Typ wird automatisch erkannt
+              {t("uploadArea.autoDetectEnabled")}
             </Typography>
           )}
 
@@ -225,7 +227,7 @@ export default function UploadArea({
               onClick={() => inputRef.current?.click()}
               disabled={isUploading}
             >
-              {isUploading ? (uploadProgress ?? "Hochladen…") : "Dateien auswählen"}
+              {isUploading ? (uploadProgress ?? t("uploadArea.uploading")) : t("uploadArea.chooseFiles")}
             </Button>
 
             <input
@@ -245,7 +247,7 @@ export default function UploadArea({
           )}
           {success && (
             <Alert severity="success" icon={<CheckCircleIcon fontSize="small" />} sx={{ mt: 1 }}>
-              Dateien hinzugefügt
+              {t("uploadArea.added")}
             </Alert>
           )}
         </Stack>

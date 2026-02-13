@@ -3,6 +3,7 @@ import {
   Paper, Stack, Typography, Button, TextField, CircularProgress,
   Alert, Box, LinearProgress, Chip, IconButton, MenuItem, Select
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ReplayIcon from "@mui/icons-material/Replay";
@@ -28,18 +29,10 @@ import {
   type SarcomaBoardEvent,
   type SystemicTherapyEvent,
 } from "../api";
+import { useMemo } from "react";
 
 const MAX_FILES = 10;
 const PREVIEW_CHARS = 5000;
-
-const DOC_TYPE_OPTIONS: { value: DocType; label: string }[] = [
-  { value: "radiology", label: "Radiologie" },
-  { value: "radiotherapy", label: "Strahlentherapie" },
-  { value: "pathology", label: "Pathologie" },
-  { value: "surgery", label: "Chirurgie" },
-  { value: "sarcoma_board", label: "Sarkom-Board" },
-  { value: "systemic_therapy", label: "Systemische Therapie" },
-];
 
 type WizardDoc = {
   file: File;
@@ -79,6 +72,7 @@ type Props = {
 };
 
 export default function UploadWizard({ onResults }: Props) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [phase, setPhase] = useState<WizardPhase>("upload");
@@ -87,6 +81,17 @@ export default function UploadWizard({ onResults }: Props) {
   const [processingIdx, setProcessingIdx] = useState(-1);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [reExtractingIdx, setReExtractingIdx] = useState(-1);
+  const docTypeOptions = useMemo<{ value: DocType; label: string }[]>(
+    () => ([
+      { value: "radiology", label: t("docType.radiology") },
+      { value: "radiotherapy", label: t("docType.radiotherapy") },
+      { value: "pathology", label: t("docType.pathology") },
+      { value: "surgery", label: t("docType.surgery") },
+      { value: "sarcoma_board", label: t("docType.sarcoma_board") },
+      { value: "systemic_therapy", label: t("docType.systemic_therapy") },
+    ]),
+    [t]
+  );
 
   // Ref to always access the latest docs (avoids stale closures in async callbacks)
   const docsRef = useRef(docs);
@@ -194,12 +199,12 @@ export default function UploadWizard({ onResults }: Props) {
       setDocs((prev) =>
         prev.map((d, i) =>
           i === idx
-            ? { ...d, status: "error" as const, error: e?.message ?? "Textextraktion fehlgeschlagen" }
+            ? { ...d, status: "error" as const, error: e?.message ?? t("uploadWizard.textExtractError") }
             : d
         )
       );
     }
-  }, []);
+  }, [t]);
 
   // Auto-extract text when entering a wizard step
   useEffect(() => {
@@ -253,7 +258,7 @@ export default function UploadWizard({ onResults }: Props) {
         };
         setDocs([...updatedDocs]);
       } catch (e: any) {
-        setProcessingError(`Fehler bei "${doc.file.name}": ${e?.message ?? "Unbekannter Fehler"}`);
+        setProcessingError(t("uploadWizard.processingError", { name: doc.file.name, message: e?.message ?? t("uploadWizard.unknownError") }));
       }
     }
 
@@ -308,11 +313,11 @@ export default function UploadWizard({ onResults }: Props) {
         return updated;
       });
     } catch (e: any) {
-      setProcessingError(`Re-Extraktion fehlgeschlagen fuer "${doc.file.name}": ${e?.message ?? "Unbekannter Fehler"}`);
+      setProcessingError(t("uploadWizard.reextractError", { name: doc.file.name, message: e?.message ?? t("uploadWizard.unknownError") }));
     } finally {
       setReExtractingIdx(-1);
     }
-  }, [onResults, buildResults]);
+  }, [onResults, buildResults, t]);
 
   const updateOverrideDocType = (idx: number, value: DocType) => {
     setDocs((prev) =>
@@ -353,9 +358,9 @@ export default function UploadWizard({ onResults }: Props) {
             <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3 }}>
               <CloudUploadIcon />
             </Paper>
-            <Typography variant="h6">PDFs hierher ziehen oder auswaehlen</Typography>
+            <Typography variant="h6">{t("uploadWizard.dropTitle")}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Max. {MAX_FILES} Dateien. Es werden nur PDF-Dateien akzeptiert.
+              {t("uploadWizard.dropHint", { max: MAX_FILES })}
             </Typography>
 
             <Button
@@ -363,7 +368,7 @@ export default function UploadWizard({ onResults }: Props) {
               startIcon={<CloudUploadIcon />}
               onClick={() => inputRef.current?.click()}
             >
-              Dateien auswaehlen
+              {t("uploadWizard.chooseFiles")}
             </Button>
             <input
               ref={inputRef}
@@ -379,7 +384,7 @@ export default function UploadWizard({ onResults }: Props) {
         {docs.length > 0 && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
-              {docs.length} Datei(en) ausgewaehlt
+              {t("uploadWizard.selectedCount", { count: docs.length })}
             </Typography>
             <Stack spacing={1}>
               {docs.map((doc, idx) => (
@@ -400,7 +405,7 @@ export default function UploadWizard({ onResults }: Props) {
               onClick={startWizard}
               disabled={docs.length === 0}
             >
-              Wizard starten ({docs.length} Dateien)
+              {t("uploadWizard.startWizard", { count: docs.length })}
             </Button>
           </Paper>
         )}
@@ -415,7 +420,7 @@ export default function UploadWizard({ onResults }: Props) {
         {/* Progress */}
         <Stack direction="row" alignItems="center" spacing={2} mb={2}>
           <Typography variant="h6">
-            Dokument {currentIdx + 1} von {docs.length}
+            {t("uploadWizard.documentProgress", { current: currentIdx + 1, total: docs.length })}
           </Typography>
           <Chip label={currentDoc.file.name} size="small" />
         </Stack>
@@ -429,7 +434,7 @@ export default function UploadWizard({ onResults }: Props) {
         {(currentDoc.status === "pending" || currentDoc.status === "extracting") && (
           <Stack spacing={2} alignItems="center" py={4}>
             <CircularProgress />
-            <Typography variant="body2">Extrahiere Text aus PDF...</Typography>
+            <Typography variant="body2">{t("uploadWizard.extractingText")}</Typography>
           </Stack>
         )}
 
@@ -439,7 +444,7 @@ export default function UploadWizard({ onResults }: Props) {
               {currentDoc.error}
             </Alert>
             <Button variant="outlined" startIcon={<ReplayIcon />} onClick={() => extractTextAt(currentIdx)}>
-              Erneut versuchen
+              {t("uploadWizard.retry")}
             </Button>
           </Stack>
         )}
@@ -447,7 +452,7 @@ export default function UploadWizard({ onResults }: Props) {
         {(currentDoc.status === "ready" && currentDoc.previewText) && (
           <Stack spacing={2}>
             {/* Text Preview */}
-            <Typography variant="subtitle2">Text-Vorschau</Typography>
+            <Typography variant="subtitle2">{t("uploadWizard.previewTitle")}</Typography>
             <Paper
               variant="outlined"
               sx={{
@@ -465,20 +470,20 @@ export default function UploadWizard({ onResults }: Props) {
               {currentDoc.previewText}
               {currentDoc.extractedText && currentDoc.extractedText.length > PREVIEW_CHARS && (
                 <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                  ... ({currentDoc.extractedText.length - PREVIEW_CHARS} weitere Zeichen)
+                  {t("uploadWizard.moreChars", { count: currentDoc.extractedText.length - PREVIEW_CHARS })}
                 </Typography>
               )}
             </Paper>
 
             {/* Patient ID Input */}
             <TextField
-              label="Patient ID (Pflichtfeld)"
+              label={t("uploadWizard.patientIdLabel")}
               value={currentDoc.patientId}
               onChange={(e) => updatePatientId(e.target.value)}
               fullWidth
               required
               error={currentDoc.patientId.trim() === ""}
-              helperText={currentDoc.patientId.trim() === "" ? "PID darf nicht leer sein" : ""}
+              helperText={currentDoc.patientId.trim() === "" ? t("uploadWizard.patientIdEmpty") : ""}
               autoFocus
             />
 
@@ -491,7 +496,7 @@ export default function UploadWizard({ onResults }: Props) {
                   else setPhase("upload");
                 }}
               >
-                {currentIdx > 0 ? "Zurueck" : "Zur Dateiauswahl"}
+                {currentIdx > 0 ? t("uploadWizard.back") : t("uploadWizard.toFileSelection")}
               </Button>
 
               <Button
@@ -501,8 +506,8 @@ export default function UploadWizard({ onResults }: Props) {
                 disabled={!currentDoc.patientId.trim()}
               >
                 {currentIdx < docs.length - 1
-                  ? "Bestaetigen & Weiter"
-                  : "Bestaetigen & Zusammenfassung"}
+                  ? t("uploadWizard.confirmNext")
+                  : t("uploadWizard.confirmSummary")}
               </Button>
             </Stack>
           </Stack>
@@ -515,9 +520,9 @@ export default function UploadWizard({ onResults }: Props) {
   if (phase === "summary") {
     return (
       <Paper variant="outlined" sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>Zusammenfassung</Typography>
+        <Typography variant="h6" gutterBottom>{t("uploadWizard.summaryTitle")}</Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Alle Dokumente wurden vorbereitet. Dokumenttyp wird automatisch erkannt. Klicken Sie auf "Jetzt extrahieren" um die Datenextraktion zu starten.
+          {t("uploadWizard.summaryHint")}
         </Typography>
 
         <Box sx={{ overflowX: "auto", mt: 2 }}>
@@ -525,10 +530,10 @@ export default function UploadWizard({ onResults }: Props) {
             <thead>
               <tr>
                 <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>#</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Dateiname</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Patient ID</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Dokumenttyp</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Textlaenge</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.filename")}</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.patientId")}</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.documentType")}</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.textLength")}</th>
               </tr>
             </thead>
             <tbody>
@@ -540,10 +545,10 @@ export default function UploadWizard({ onResults }: Props) {
                     <Chip label={doc.patientId} size="small" color="primary" />
                   </td>
                   <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
-                    <Chip label="Auto (wird erkannt)" size="small" variant="outlined" />
+                    <Chip label={t("uploadWizard.autoDetected")} size="small" variant="outlined" />
                   </td>
                   <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
-                    {doc.extractedText?.length?.toLocaleString() ?? "–"} Zeichen
+                    {doc.extractedText?.length?.toLocaleString() ?? "–"} {t("uploadWizard.characters")}
                   </td>
                 </tr>
               ))}
@@ -556,14 +561,14 @@ export default function UploadWizard({ onResults }: Props) {
             startIcon={<ArrowBackIcon />}
             onClick={() => { setCurrentIdx(docs.length - 1); setPhase("wizard"); }}
           >
-            Zurueck zum Wizard
+            {t("uploadWizard.backToWizard")}
           </Button>
           <Button
             variant="contained"
             size="large"
             onClick={extractAll}
           >
-            Jetzt extrahieren ({docs.length} Dokumente)
+            {t("uploadWizard.extractNow", { count: docs.length })}
           </Button>
         </Stack>
       </Paper>
@@ -574,7 +579,7 @@ export default function UploadWizard({ onResults }: Props) {
   if (phase === "processing") {
     return (
       <Paper variant="outlined" sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>Daten werden klassifiziert & extrahiert...</Typography>
+        <Typography variant="h6" gutterBottom>{t("uploadWizard.processingTitle")}</Typography>
         <LinearProgress
           variant="determinate"
           value={processingIdx >= 0 ? ((processingIdx + 1) / docs.length) * 100 : 0}
@@ -597,7 +602,7 @@ export default function UploadWizard({ onResults }: Props) {
               >
                 {doc.file.name} (PID: {doc.patientId})
                 {idx < processingIdx && doc.detectedDocType && (
-                  <Chip label={DOC_TYPE_OPTIONS.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType} size="small" sx={{ ml: 1 }} />
+                  <Chip label={docTypeOptions.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType} size="small" sx={{ ml: 1 }} />
                 )}
               </Typography>
             </Stack>
@@ -618,10 +623,10 @@ export default function UploadWizard({ onResults }: Props) {
         <Stack spacing={2}>
           <Stack direction="row" alignItems="center" spacing={1}>
             <CheckCircleIcon color="success" sx={{ fontSize: 32 }} />
-            <Typography variant="h6">Extraktion abgeschlossen</Typography>
+            <Typography variant="h6">{t("uploadWizard.extractionDone")}</Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            {docs.length} Dokument(e) verarbeitet. Falls ein Dokumenttyp falsch erkannt wurde, koennen Sie ihn manuell aendern und das Dokument neu extrahieren.
+            {t("uploadWizard.doneHint", { count: docs.length })}
           </Typography>
 
           {processingError && (
@@ -633,12 +638,12 @@ export default function UploadWizard({ onResults }: Props) {
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>#</th>
-                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Dateiname</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.filename")}</th>
                   <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>PID</th>
-                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Erkannter Typ</th>
-                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Typ aendern</th>
-                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Events</th>
-                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>Aktion</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.detectedType")}</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.changeType")}</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.events")}</th>
+                  <th style={{ textAlign: "left", padding: "8px", borderBottom: "2px solid #ddd" }}>{t("uploadWizard.action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -654,7 +659,7 @@ export default function UploadWizard({ onResults }: Props) {
                       </td>
                       <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
                         <Chip
-                          label={DOC_TYPE_OPTIONS.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType ?? "–"}
+                          label={docTypeOptions.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType ?? "–"}
                           size="small"
                           color={isOverridden ? "default" : "success"}
                           variant={isOverridden ? "outlined" : "filled"}
@@ -667,7 +672,7 @@ export default function UploadWizard({ onResults }: Props) {
                           onChange={(e) => updateOverrideDocType(idx, e.target.value as DocType)}
                           sx={{ minWidth: 160 }}
                         >
-                          {DOC_TYPE_OPTIONS.map((opt) => (
+                          {docTypeOptions.map((opt) => (
                             <MenuItem key={opt.value} value={opt.value}>
                               {opt.label}
                             </MenuItem>
@@ -685,7 +690,7 @@ export default function UploadWizard({ onResults }: Props) {
                           onClick={() => reExtractDoc(idx)}
                           disabled={reExtractingIdx >= 0}
                         >
-                          Neu extrahieren
+                          {t("uploadWizard.reextract")}
                         </Button>
                       </td>
                     </tr>
@@ -697,7 +702,7 @@ export default function UploadWizard({ onResults }: Props) {
 
           <Stack direction="row" spacing={2} justifyContent="flex-end">
             <Button variant="outlined" onClick={resetWizard}>
-              Neuen Wizard starten
+              {t("uploadWizard.newWizard")}
             </Button>
           </Stack>
         </Stack>

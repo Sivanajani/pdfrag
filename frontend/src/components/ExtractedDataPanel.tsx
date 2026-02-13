@@ -3,6 +3,7 @@ import { Paper, Typography, Stack, Button, Alert, CircularProgress, Box, Table, 
 import EditIcon from '@mui/icons-material/Edit';
 import * as XLSX from 'xlsx';
 import { csvValue, buildCsv } from '../utils/csv';
+import { useTranslation } from 'react-i18next';
 import type {
   RadiologyEvent,
   RadiotherapyEvent,
@@ -178,6 +179,7 @@ export default function ExtractedDataPanel({
   onUpdateSarcomaBoard?: (row: number, field: string, value: string) => void;
   onUpdateSystemicTherapy?: (row: number, field: string, value: string) => void;
 }) {
+  const { t } = useTranslation();
   const [editingCell, setEditingCell] = useState<EditingCell>(null);
 
   const onStartEdit = (table: string, row: number, field: string) => {
@@ -212,13 +214,13 @@ export default function ExtractedDataPanel({
   return (
     <Box mt={4}>
       <Typography variant="h6" gutterBottom>
-        Extrahierte strukturierte Daten
+        {t('extractedData.title')}
       </Typography>
 
       {loading && (
         <Stack direction="row" spacing={1} alignItems="center">
           <CircularProgress size={18} />
-          <Typography variant="body2">Extrahiere Daten...</Typography>
+          <Typography variant="body2">{t('extractedData.loading')}</Typography>
         </Stack>
       )}
 
@@ -626,7 +628,7 @@ export default function ExtractedDataPanel({
 
       {!loading && !error && !radiologyEvents && !radiotherapyEvents && !pathologyEvents && !surgeryEvents && !sarcomaBoardEvents && !systemicTherapyEvents && (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Keine Daten gefunden.
+          {t('extractedData.noData')}
         </Typography>
       )}
     </Box>
