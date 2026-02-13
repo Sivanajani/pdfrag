@@ -165,7 +165,7 @@ export default function ExtractedDataPanel({
                     <TableRow key={idx}>
                       <TableCell sx={pidCellSx}>{(e as any).patient_id ?? ""}</TableCell>
                       <TableCell>{e.institution_id ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.exam_date}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{e.exam_date ?? ""}</TableCell>
                       <TableCell>{e.exam_type ?? ""}</TableCell>
                       <TableCell>{e.exam_type_comment ?? ""}</TableCell>
                       <TableCell>{e.imaging_timing ?? ""}</TableCell>

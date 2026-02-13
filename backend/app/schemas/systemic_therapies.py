@@ -118,7 +118,7 @@ class Drug(BaseModel):
     Einzelnes Medikament innerhalb einer systemischen Therapie.
     Entspricht der croms_drugs Tabelle.
     """
-    drug_type: DrugType
+    drug_type: Optional[DrugType] = None
     dose: Optional[float] = Field(default=None, ge=0, description="Dosis")
     dose_unit: Optional[str] = Field(default=None, max_length=50, description="z.B. mg, mg/m², mg/kg")
     frequency: Optional[float] = Field(default=None, ge=0, description="Häufigkeit")
@@ -133,9 +133,9 @@ class AdverseEvent(BaseModel):
     Unerwünschtes Ereignis während systemischer Therapie.
     Entspricht der croms_adverse_events Tabelle.
     """
-    medical_area: str = Field(..., max_length=200, description="Medizinischer Bereich (z.B. Hämatologie)")
-    event_type: str = Field(..., max_length=200, description="Art des Ereignisses (z.B. Neutropenie)")
-    grade: str = Field(..., max_length=10, description="CTCAE Grade (1-5)")
+    medical_area: Optional[str] = Field(default=None, max_length=200, description="Medizinischer Bereich (z.B. Hämatologie)")
+    event_type: Optional[str] = Field(default=None, max_length=200, description="Art des Ereignisses (z.B. Neutropenie)")
+    grade: Optional[str] = Field(default=None, max_length=10, description="CTCAE Grade (1-5)")
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     comment: Optional[str] = Field(default=None, max_length=1000)
@@ -223,7 +223,7 @@ class SystemicTherapyEvent(BaseModel):
                 except ValueError:
                     pass
 
-        raise ValueError(f"Invalid date format: {v}")
+        return None  # Unbekanntes Format → leer lassen statt Fehler
 
 
 class SystemicTherapyEvents(BaseModel):

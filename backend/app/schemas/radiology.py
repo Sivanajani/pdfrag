@@ -137,8 +137,8 @@ class RadiologyEvent(BaseModel):
     institution_id: Optional[int] = Field(default=None, ge=0)
     patient_id: Optional[int] = Field(default=None, ge=0)
 
-    # Pflichtfeld
-    exam_date: date = Field(..., description="Untersuchungsdatum")
+    # Datum (optional — LLM liefert nicht immer ein Datum)
+    exam_date: Optional[date] = Field(default=None, description="Untersuchungsdatum")
 
     # Grundlegende Untersuchungs-Informationen
     exam_type: Optional[RadiologyExamType] = None
@@ -238,7 +238,7 @@ class RadiologyEvent(BaseModel):
                 except ValueError:
                     pass
 
-        raise ValueError(f"Invalid date format: {v}")
+        return None  # Unbekanntes Format → leer lassen statt Fehler
 
 
 class RadiologyEvents(BaseModel):

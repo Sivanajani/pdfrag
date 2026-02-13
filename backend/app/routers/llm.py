@@ -1,11 +1,13 @@
 import logging
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Type, TypeVar
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.utils.paths import validate_doc_id
 from app.services.pdf_service import read_pdf_text
+
+T = TypeVar("T", bound=BaseModel)
 from app.services.gemini_client import (
     extract_structured_data_from_text,
     extract_radiology_events_from_text,
@@ -56,6 +58,34 @@ def _resolve_text(payload: _DocOrTextRequest) -> str:
     return raw_text
 
 
+def _parse_events_tolerant(raw_list: List[Dict[str, Any]], model_cls: Type[T]) -> List[T]:
+    """Parse a list of dicts into Pydantic models, tolerating invalid fields.
+
+    For each dict: try strict parse first. If it fails, set every invalid
+    field to None and retry. If that still fails, skip the event entirely.
+    This ensures partial data is always returned instead of a 422 error.
+    """
+    events: List[T] = []
+    for raw in raw_list:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            events.append(model_cls(**raw))
+        except (ValidationError, Exception) as exc:
+            # Identify invalid fields from Pydantic error and null them out
+            cleaned = dict(raw)
+            if isinstance(exc, ValidationError):
+                for err in exc.errors():
+                    field = err["loc"][0] if err["loc"] else None
+                    if field and field in cleaned:
+                        cleaned[field] = None
+            try:
+                events.append(model_cls(**cleaned))
+            except Exception:
+                logger.warning("Event komplett uebersprungen: %s", exc)
+    return events
+
+
 # --- Generic extraction ---
 
 class ExtractedItem(BaseModel):
@@ -101,12 +131,7 @@ async def llm_extract_radiology(payload: _DocOrTextRequest):
         logger.exception("Radiology-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Radiology-Extraktion.")
 
-    try:
-        events = [RadiologyEvent(**r) for r in raw_list]
-    except Exception:
-        logger.exception("RadiologyEvent Validierung fehlgeschlagen")
-        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
-
+    events = _parse_events_tolerant(raw_list, RadiologyEvent)
     return RadiologyExtractResponse(events=events)
 
 
@@ -153,12 +178,7 @@ async def llm_extract_radiotherapy(payload: _DocOrTextRequest):
         logger.exception("Radiotherapy-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Radiotherapy-Extraktion.")
 
-    try:
-        events = [RadiotherapyEvent(**r) for r in raw_list]
-    except Exception:
-        logger.exception("RadiotherapyEvent Validierung fehlgeschlagen")
-        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
-
+    events = _parse_events_tolerant(raw_list, RadiotherapyEvent)
     return RadiotherapyExtractResponse(events=events)
 
 
@@ -178,12 +198,7 @@ async def llm_extract_pathology(payload: _DocOrTextRequest):
         logger.exception("Pathology-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Pathology-Extraktion.")
 
-    try:
-        events = [PathologyEvent(**r) for r in raw_list]
-    except Exception:
-        logger.exception("PathologyEvent Validierung fehlgeschlagen")
-        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
-
+    events = _parse_events_tolerant(raw_list, PathologyEvent)
     return PathologyExtractResponse(events=events)
 
 
@@ -203,12 +218,7 @@ async def llm_extract_surgery(payload: _DocOrTextRequest):
         logger.exception("Surgery-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Surgery-Extraktion.")
 
-    try:
-        events = [SurgeryEvent(**r) for r in raw_list]
-    except Exception:
-        logger.exception("SurgeryEvent Validierung fehlgeschlagen")
-        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
-
+    events = _parse_events_tolerant(raw_list, SurgeryEvent)
     return SurgeryExtractResponse(events=events)
 
 
@@ -228,12 +238,7 @@ async def llm_extract_sarcoma_board(payload: _DocOrTextRequest):
         logger.exception("Sarcoma Board-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Sarcoma Board-Extraktion.")
 
-    try:
-        events = [SarcomaBoardEvent(**r) for r in raw_list]
-    except Exception:
-        logger.exception("SarcomaBoardEvent Validierung fehlgeschlagen")
-        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
-
+    events = _parse_events_tolerant(raw_list, SarcomaBoardEvent)
     return SarcomaBoardExtractResponse(events=events)
 
 
@@ -253,10 +258,5 @@ async def llm_extract_systemic_therapy(payload: _DocOrTextRequest):
         logger.exception("Systemic Therapy-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Systemic Therapy-Extraktion.")
 
-    try:
-        events = [SystemicTherapyEvent(**r) for r in raw_list]
-    except Exception:
-        logger.exception("SystemicTherapyEvent Validierung fehlgeschlagen")
-        raise HTTPException(status_code=422, detail="Validierung der extrahierten Daten fehlgeschlagen.")
-
+    events = _parse_events_tolerant(raw_list, SystemicTherapyEvent)
     return SystemicTherapyExtractResponse(events=events)

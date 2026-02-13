@@ -143,7 +143,7 @@ class RadiotherapyEvent(BaseModel):
                 except ValueError:
                     pass
 
-        raise ValueError(f"Invalid date format: {v}")
+        return None  # Unbekanntes Format → leer lassen statt Fehler
 
 
 class RadiotherapyEvents(BaseModel):

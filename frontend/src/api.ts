@@ -67,8 +67,8 @@ export type RadiologyEvent = {
   institution_id?: number | null
   patient_id?: number | null
 
-  // Pflichtfeld
-  exam_date: string
+  // Datum (optional)
+  exam_date?: string | null
 
   // Grundlegende Untersuchungs-Informationen
   exam_type?: string | null
@@ -362,8 +362,8 @@ export type SurgeryEvent = {
   patient_id?: number | null
   responsible_surgeon_id?: number | null
 
-  // PFLICHTFELD
-  surgery_date: string
+  // Datum (optional)
+  surgery_date?: string | null
 
   // Operations-Details
   indication?: string | null
@@ -419,8 +419,8 @@ export type SarcomaBoardEvent = {
   institution_id?: number | null
   patient_id?: number | null
 
-  // PFLICHTFELD
-  presentation_date: string
+  // Datum (optional)
+  presentation_date?: string | null
 
   // Grund und Status
   reason_for_presentation?: string | null

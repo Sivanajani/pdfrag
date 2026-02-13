@@ -154,7 +154,7 @@ class SurgeryEvent(BaseModel):
         Parst flexible Datumsformate (DD.MM.YYYY, DD/MM/YYYY, YYYY-MM-DD)
         """
         if v is None or (isinstance(v, str) and not v.strip()):
-            raise ValueError("surgery_date is required")
+            return None
 
         if isinstance(v, date):
             return v
@@ -168,7 +168,7 @@ class SurgeryEvent(BaseModel):
                 except ValueError:
                     pass
 
-        raise ValueError(f"Invalid date format: {v}")
+        return None  # Unbekanntes Format → leer lassen statt Fehler
 
 
 class SurgeryEvents(BaseModel):
