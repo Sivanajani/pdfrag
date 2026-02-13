@@ -59,32 +59,82 @@ def _resolve_text(payload: _DocOrTextRequest) -> str:
     return raw_text
 
 
-def _parse_events_tolerant(raw_list: List[Dict[str, Any]], model_cls: Type[T]) -> List[T]:
-    """Parse a list of dicts into Pydantic models, tolerating invalid fields.
+class ParseIssue(BaseModel):
+    event_index: int
+    field: Optional[str] = None
+    raw_value: Any = None
+    error: str
 
-    For each dict: try strict parse first. If it fails, set every invalid
-    field to None and retry. If that still fails, skip the event entirely.
-    This ensures partial data is always returned instead of a 422 error.
+
+def _parse_events_tolerant(
+    raw_list: List[Dict[str, Any]], model_cls: Type[T]
+) -> tuple[List[T], List[Dict[str, Any]], List[ParseIssue]]:
+    """Parse events while preserving original payload and parse errors.
+
+    Returns:
+    - parsed events (schema-conform)
+    - raw events (original dicts, unchanged)
+    - parse issues (which values could not be mapped/validated)
     """
     events: List[T] = []
-    for raw in raw_list:
+    raw_events: List[Dict[str, Any]] = []
+    issues: List[ParseIssue] = []
+
+    for idx, raw in enumerate(raw_list):
         if not isinstance(raw, dict):
+            issues.append(
+                ParseIssue(
+                    event_index=idx,
+                    field=None,
+                    raw_value=raw,
+                    error="Event ist kein JSON-Objekt und wurde ignoriert.",
+                )
+            )
             continue
+
+        raw_events.append(dict(raw))
+
         try:
             events.append(model_cls(**raw))
-        except (ValidationError, Exception) as exc:
-            # Identify invalid fields from Pydantic error and null them out
+            continue
+        except ValidationError as exc:
             cleaned = dict(raw)
-            if isinstance(exc, ValidationError):
-                for err in exc.errors():
-                    field = err["loc"][0] if err["loc"] else None
-                    if field and field in cleaned:
-                        cleaned[field] = None
+            for err in exc.errors():
+                field = err["loc"][0] if err.get("loc") else None
+                if isinstance(field, str) and field in cleaned:
+                    issues.append(
+                        ParseIssue(
+                            event_index=idx,
+                            field=field,
+                            raw_value=raw.get(field),
+                            error=err.get("msg", "Validierungsfehler"),
+                        )
+                    )
+                    cleaned[field] = None
             try:
                 events.append(model_cls(**cleaned))
-            except Exception:
-                logger.warning("Event komplett uebersprungen: %s", exc)
-    return events
+            except Exception as second_exc:
+                issues.append(
+                    ParseIssue(
+                        event_index=idx,
+                        field=None,
+                        raw_value=raw,
+                        error=f"Event trotz Bereinigung ungueltig: {second_exc}",
+                    )
+                )
+                logger.warning("Event komplett uebersprungen: %s", second_exc)
+        except Exception as exc:
+            issues.append(
+                ParseIssue(
+                    event_index=idx,
+                    field=None,
+                    raw_value=raw,
+                    error=f"Unerwarteter Parse-Fehler: {exc}",
+                )
+            )
+            logger.warning("Unerwarteter Parse-Fehler: %s", exc)
+
+    return events, raw_events, issues
 
 
 # --- Generic extraction ---
@@ -120,6 +170,8 @@ async def llm_extract(payload: _DocOrTextRequest):
 
 class RadiologyExtractResponse(BaseModel):
     events: List[RadiologyEvent]
+    raw_events: List[Dict[str, Any]] = []
+    parse_issues: List[ParseIssue] = []
 
 
 @router.post("/llm/extract-radiology", response_model=RadiologyExtractResponse)
@@ -132,8 +184,8 @@ async def llm_extract_radiology(payload: _DocOrTextRequest):
         logger.exception("Radiology-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Radiology-Extraktion.")
 
-    events = _parse_events_tolerant(raw_list, RadiologyEvent)
-    return RadiologyExtractResponse(events=events)
+    events, raw_events, parse_issues = _parse_events_tolerant(raw_list, RadiologyEvent)
+    return RadiologyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
 
 # --- Classify doc type ---
@@ -167,6 +219,8 @@ async def classify_doc_type(payload: ClassifyDocTypeRequest):
 
 class RadiotherapyExtractResponse(BaseModel):
     events: List[RadiotherapyEvent]
+    raw_events: List[Dict[str, Any]] = []
+    parse_issues: List[ParseIssue] = []
 
 
 @router.post("/llm/extract-radiotherapy", response_model=RadiotherapyExtractResponse)
@@ -179,14 +233,16 @@ async def llm_extract_radiotherapy(payload: _DocOrTextRequest):
         logger.exception("Radiotherapy-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Radiotherapy-Extraktion.")
 
-    events = _parse_events_tolerant(raw_list, RadiotherapyEvent)
-    return RadiotherapyExtractResponse(events=events)
+    events, raw_events, parse_issues = _parse_events_tolerant(raw_list, RadiotherapyEvent)
+    return RadiotherapyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
 
 # --- Pathology ---
 
 class PathologyExtractResponse(BaseModel):
     events: List[PathologyEvent]
+    raw_events: List[Dict[str, Any]] = []
+    parse_issues: List[ParseIssue] = []
 
 
 @router.post("/llm/extract-pathology", response_model=PathologyExtractResponse)
@@ -199,14 +255,16 @@ async def llm_extract_pathology(payload: _DocOrTextRequest):
         logger.exception("Pathology-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Pathology-Extraktion.")
 
-    events = _parse_events_tolerant(raw_list, PathologyEvent)
-    return PathologyExtractResponse(events=events)
+    events, raw_events, parse_issues = _parse_events_tolerant(raw_list, PathologyEvent)
+    return PathologyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
 
 # --- Surgery ---
 
 class SurgeryExtractResponse(BaseModel):
     events: List[SurgeryEvent]
+    raw_events: List[Dict[str, Any]] = []
+    parse_issues: List[ParseIssue] = []
 
 
 @router.post("/llm/extract-surgery", response_model=SurgeryExtractResponse)
@@ -219,14 +277,16 @@ async def llm_extract_surgery(payload: _DocOrTextRequest):
         logger.exception("Surgery-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Surgery-Extraktion.")
 
-    events = _parse_events_tolerant(raw_list, SurgeryEvent)
-    return SurgeryExtractResponse(events=events)
+    events, raw_events, parse_issues = _parse_events_tolerant(raw_list, SurgeryEvent)
+    return SurgeryExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
 
 # --- Sarcoma Board ---
 
 class SarcomaBoardExtractResponse(BaseModel):
     events: List[SarcomaBoardEvent]
+    raw_events: List[Dict[str, Any]] = []
+    parse_issues: List[ParseIssue] = []
 
 
 @router.post("/llm/extract-sarcoma-board", response_model=SarcomaBoardExtractResponse)
@@ -239,14 +299,16 @@ async def llm_extract_sarcoma_board(payload: _DocOrTextRequest):
         logger.exception("Sarcoma Board-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Sarcoma Board-Extraktion.")
 
-    events = _parse_events_tolerant(raw_list, SarcomaBoardEvent)
-    return SarcomaBoardExtractResponse(events=events)
+    events, raw_events, parse_issues = _parse_events_tolerant(raw_list, SarcomaBoardEvent)
+    return SarcomaBoardExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
 
 # --- Systemic Therapy ---
 
 class SystemicTherapyExtractResponse(BaseModel):
     events: List[SystemicTherapyEvent]
+    raw_events: List[Dict[str, Any]] = []
+    parse_issues: List[ParseIssue] = []
 
 
 @router.post("/llm/extract-systemic-therapy", response_model=SystemicTherapyExtractResponse)
@@ -259,8 +321,8 @@ async def llm_extract_systemic_therapy(payload: _DocOrTextRequest):
         logger.exception("Systemic Therapy-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Systemic Therapy-Extraktion.")
 
-    events = _parse_events_tolerant(raw_list, SystemicTherapyEvent)
-    return SystemicTherapyExtractResponse(events=events)
+    events, raw_events, parse_issues = _parse_events_tolerant(raw_list, SystemicTherapyEvent)
+    return SystemicTherapyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
 
 # --- Combined Classify + Extract ---
