@@ -1,4 +1,6 @@
-import { Paper, Typography, Stack, Button, Alert, CircularProgress, Box, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
+import { useState, useRef, useEffect } from 'react';
+import { Paper, Typography, Stack, Button, Alert, CircularProgress, Box, Table, TableHead, TableRow, TableCell, TableBody, TextField } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
 import * as XLSX from 'xlsx';
 import type {
   RadiologyEvent,
@@ -72,6 +74,88 @@ function ExportButtons({ headers, rows, baseName }: { headers: string[]; rows: a
   );
 }
 
+// --- EditableCell ---
+
+type EditingCell = { table: string; row: number; field: string } | null;
+
+function EditableCell({
+  value,
+  tableType,
+  rowIdx,
+  field,
+  editingCell,
+  onStartEdit,
+  onCommit,
+  sx,
+}: {
+  value: string;
+  tableType: string;
+  rowIdx: number;
+  field: string;
+  editingCell: EditingCell;
+  onStartEdit: (table: string, row: number, field: string) => void;
+  onCommit: (table: string, row: number, field: string, newValue: string) => void;
+  sx?: any;
+}) {
+  const isEditing =
+    editingCell?.table === tableType &&
+    editingCell?.row === rowIdx &&
+    editingCell?.field === field;
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    if (isEditing) {
+      setDraft(value);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [isEditing, value]);
+
+  if (isEditing) {
+    return (
+      <TableCell sx={{ ...sx, p: 0.5 }}>
+        <TextField
+          inputRef={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onCommit(tableType, rowIdx, field, draft);
+            } else if (e.key === "Escape") {
+              onCommit(tableType, rowIdx, field, value); // revert
+            }
+          }}
+          onBlur={() => onCommit(tableType, rowIdx, field, draft)}
+          size="small"
+          variant="outlined"
+          fullWidth
+          sx={{ minWidth: 60 }}
+        />
+      </TableCell>
+    );
+  }
+
+  return (
+    <TableCell
+      sx={{
+        ...sx,
+        cursor: "pointer",
+        "&:hover .edit-icon": { opacity: 1 },
+      }}
+      onClick={() => onStartEdit(tableType, rowIdx, field)}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <span style={{ flex: 1 }}>{value}</span>
+        <EditIcon
+          className="edit-icon"
+          sx={{ fontSize: 14, opacity: 0, transition: "opacity 0.15s", color: "action.active" }}
+        />
+      </Box>
+    </TableCell>
+  );
+}
+
 // Patient ID header cell style
 const pidHeaderSx = { fontWeight: 'bold', bgcolor: 'action.hover', position: 'sticky' as const, left: 0, zIndex: 1 };
 const pidCellSx = { fontWeight: 'bold', position: 'sticky' as const, left: 0, bgcolor: 'background.paper', zIndex: 1 };
@@ -85,6 +169,12 @@ export default function ExtractedDataPanel({
   surgeryEvents,
   sarcomaBoardEvents,
   systemicTherapyEvents,
+  onUpdateRadiology,
+  onUpdateRadiotherapy,
+  onUpdatePathology,
+  onUpdateSurgery,
+  onUpdateSarcomaBoard,
+  onUpdateSystemicTherapy,
 }: {
   loading: boolean;
   error: string | null;
@@ -94,7 +184,43 @@ export default function ExtractedDataPanel({
   surgeryEvents?: SurgeryEvent[] | null;
   sarcomaBoardEvents?: SarcomaBoardEvent[] | null;
   systemicTherapyEvents?: SystemicTherapyEvent[] | null;
+  onUpdateRadiology?: (row: number, field: string, value: string) => void;
+  onUpdateRadiotherapy?: (row: number, field: string, value: string) => void;
+  onUpdatePathology?: (row: number, field: string, value: string) => void;
+  onUpdateSurgery?: (row: number, field: string, value: string) => void;
+  onUpdateSarcomaBoard?: (row: number, field: string, value: string) => void;
+  onUpdateSystemicTherapy?: (row: number, field: string, value: string) => void;
 }) {
+  const [editingCell, setEditingCell] = useState<EditingCell>(null);
+
+  const onStartEdit = (table: string, row: number, field: string) => {
+    setEditingCell({ table, row, field });
+  };
+
+  const onCommit = (table: string, row: number, field: string, newValue: string) => {
+    setEditingCell(null);
+    const handlers: Record<string, ((row: number, field: string, value: string) => void) | undefined> = {
+      radiology: onUpdateRadiology,
+      radiotherapy: onUpdateRadiotherapy,
+      pathology: onUpdatePathology,
+      surgery: onUpdateSurgery,
+      sarcomaBoard: onUpdateSarcomaBoard,
+      systemicTherapy: onUpdateSystemicTherapy,
+    };
+    handlers[table]?.(row, field, newValue);
+  };
+
+  // Helper to create editable cell props
+  const ec = (tableType: string, rowIdx: number, field: string, value: string, sx?: any) => ({
+    value,
+    tableType,
+    rowIdx,
+    field,
+    editingCell,
+    onStartEdit,
+    onCommit,
+    sx,
+  });
 
   return (
     <Box mt={4}>
@@ -163,43 +289,43 @@ export default function ExtractedDataPanel({
                 <TableBody>
                   {radiologyEvents.map((e, idx) => (
                     <TableRow key={idx}>
-                      <TableCell sx={pidCellSx}>{(e as any).patient_id ?? ""}</TableCell>
-                      <TableCell>{e.institution_id ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.exam_date ?? ""}</TableCell>
-                      <TableCell>{e.exam_type ?? ""}</TableCell>
-                      <TableCell>{e.exam_type_comment ?? ""}</TableCell>
-                      <TableCell>{e.imaging_timing ?? ""}</TableCell>
-                      <TableCell>{e.imaging_type ?? ""}</TableCell>
-                      <TableCell>{e.location_of_lesion ?? ""}</TableCell>
-                      <TableCell>{e.largest_lesion_size_in_mm ?? ""}</TableCell>
-                      <TableCell>{e.medium_lesion_size_in_mm ?? ""}</TableCell>
-                      <TableCell>{e.smallest_lesion_size_in_mm ?? ""}</TableCell>
-                      <TableCell>{e.recist_response ?? ""}</TableCell>
-                      <TableCell>{e.choi_response ?? ""}</TableCell>
-                      <TableCell>{e.irecist_response ?? ""}</TableCell>
-                      <TableCell>{e.pet_response ?? ""}</TableCell>
-                      <TableCell>{e.local_disease_status ?? ""}</TableCell>
-                      <TableCell>{e.local_disease_measurable ?? ""}</TableCell>
-                      <TableCell>{e.local_disease_report_largest_diameter ?? ""}</TableCell>
-                      <TableCell>{e.local_disease_qualitative_mri_response ?? ""}</TableCell>
-                      <TableCell>{e.local_disease_radiologist_confidence ?? ""}</TableCell>
-                      <TableCell>{e.local_disease_pet_metabolic_response ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_presence != null ? (e.metastasis_presence ? "Yes" : "No") : ""}</TableCell>
-                      <TableCell>{e.metastasis ?? ""}</TableCell>
+                      <EditableCell {...ec("radiology", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("radiology", idx, "institution_id", String(e.institution_id ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "exam_date", String(e.exam_date ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("radiology", idx, "exam_type", String(e.exam_type ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "exam_type_comment", String(e.exam_type_comment ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "imaging_timing", String(e.imaging_timing ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "imaging_type", String(e.imaging_type ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "location_of_lesion", String(e.location_of_lesion ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "largest_lesion_size_in_mm", String(e.largest_lesion_size_in_mm ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "medium_lesion_size_in_mm", String(e.medium_lesion_size_in_mm ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "smallest_lesion_size_in_mm", String(e.smallest_lesion_size_in_mm ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "recist_response", String(e.recist_response ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "choi_response", String(e.choi_response ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "irecist_response", String(e.irecist_response ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "pet_response", String(e.pet_response ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "local_disease_status", String(e.local_disease_status ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "local_disease_measurable", String(e.local_disease_measurable ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "local_disease_report_largest_diameter", String(e.local_disease_report_largest_diameter ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "local_disease_qualitative_mri_response", String(e.local_disease_qualitative_mri_response ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "local_disease_radiologist_confidence", String(e.local_disease_radiologist_confidence ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "local_disease_pet_metabolic_response", String(e.local_disease_pet_metabolic_response ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_presence", e.metastasis_presence != null ? (e.metastasis_presence ? "Yes" : "No") : "")} />
+                      <EditableCell {...ec("radiology", idx, "metastasis", String(e.metastasis ?? ""))} />
                       <TableCell>{e.anatomic_location_of_metastasis?.join(", ") ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_lung_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_pleura_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_bone_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_liver_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_soft_tissue_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_lymph_node_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_brain_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_location_other_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_target_lesion_count ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_longest_diameter_mm ?? ""}</TableCell>
-                      <TableCell>{e.metastasis_indeterminate_category ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.radiology_report ?? ""}</TableCell>
-                      <TableCell>{e.report_date ?? ""}</TableCell>
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_lung_count", String(e.metastasis_location_lung_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_pleura_count", String(e.metastasis_location_pleura_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_bone_count", String(e.metastasis_location_bone_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_liver_count", String(e.metastasis_location_liver_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_soft_tissue_count", String(e.metastasis_location_soft_tissue_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_lymph_node_count", String(e.metastasis_location_lymph_node_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_brain_count", String(e.metastasis_location_brain_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_location_other_count", String(e.metastasis_location_other_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_target_lesion_count", String(e.metastasis_target_lesion_count ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_longest_diameter_mm", String(e.metastasis_longest_diameter_mm ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "metastasis_indeterminate_category", String(e.metastasis_indeterminate_category ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "radiology_report", String(e.radiology_report ?? ""), { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("radiology", idx, "report_date", String(e.report_date ?? ""))} />
                     </TableRow>
                   ))}
                 </TableBody>
@@ -238,19 +364,19 @@ export default function ExtractedDataPanel({
                 <TableBody>
                   {radiotherapyEvents.map((e, idx) => (
                     <TableRow key={idx}>
-                      <TableCell sx={pidCellSx}>{(e as any).patient_id ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.referral_date ?? ""}</TableCell>
-                      <TableCell>{e.first_contact_date ?? ""}</TableCell>
-                      <TableCell>{e.therapy_start_date ?? ""}</TableCell>
-                      <TableCell>{e.therapy_end_date ?? ""}</TableCell>
+                      <EditableCell {...ec("radiotherapy", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("radiotherapy", idx, "referral_date", String(e.referral_date ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("radiotherapy", idx, "first_contact_date", String(e.first_contact_date ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "therapy_start_date", String(e.therapy_start_date ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "therapy_end_date", String(e.therapy_end_date ?? ""))} />
                       <TableCell>{e.indications?.join(", ") ?? ""}</TableCell>
                       <TableCell>{e.therapy_types?.join(", ") ?? ""}</TableCell>
-                      <TableCell>{e.total_dose_in_gy ?? ""}</TableCell>
-                      <TableCell>{e.given_fractions ?? ""}</TableCell>
-                      <TableCell>{e.ptv_volume_in_cm3 ?? ""}</TableCell>
-                      <TableCell>{e.gtv_volume_in_cm3 ?? ""}</TableCell>
-                      <TableCell>{e.hyperthermia_status ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.comments ?? ""}</TableCell>
+                      <EditableCell {...ec("radiotherapy", idx, "total_dose_in_gy", String(e.total_dose_in_gy ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "given_fractions", String(e.given_fractions ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "ptv_volume_in_cm3", String(e.ptv_volume_in_cm3 ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "gtv_volume_in_cm3", String(e.gtv_volume_in_cm3 ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "hyperthermia_status", String(e.hyperthermia_status ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "comments", String(e.comments ?? ""), { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                     </TableRow>
                   ))}
                 </TableBody>
@@ -297,27 +423,27 @@ export default function ExtractedDataPanel({
                 <TableBody>
                   {pathologyEvents.map((e, idx) => (
                     <TableRow key={idx}>
-                      <TableCell sx={pidCellSx}>{(e as any).patient_id ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.biopsy_type ?? ""}</TableCell>
-                      <TableCell>{e.biopsied_lesion_type ?? ""}</TableCell>
-                      <TableCell>{e.biopsy_resection_date ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.who_diagnosis ?? ""}</TableCell>
-                      <TableCell>{e.diagnostic_grading ?? ""}</TableCell>
-                      <TableCell>{e.judgment_of_surgical_margin ?? ""}</TableCell>
-                      <TableCell>{e.closest_distance_to_margin_mm ?? ""}</TableCell>
-                      <TableCell>{e.proliferation_index ?? ""}</TableCell>
-                      <TableCell>{e.mitoses_per_10hpf ?? ""}</TableCell>
-                      <TableCell>{e.extent_of_necrosis ?? ""}</TableCell>
-                      <TableCell>{e.eortc_response_grade ?? ""}</TableCell>
-                      <TableCell>{e.ihc_performed_status ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.ihc_result ?? ""}</TableCell>
-                      <TableCell>{e.fish_performed_status ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.fish_result ?? ""}</TableCell>
-                      <TableCell>{e.rna_performed_status ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.rna_result ?? ""}</TableCell>
-                      <TableCell>{e.dna_performed_status ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.dna_result ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.report ?? ""}</TableCell>
+                      <EditableCell {...ec("pathology", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("pathology", idx, "biopsy_type", String(e.biopsy_type ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("pathology", idx, "biopsied_lesion_type", String(e.biopsied_lesion_type ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "biopsy_resection_date", String(e.biopsy_resection_date ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "who_diagnosis", String(e.who_diagnosis ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("pathology", idx, "diagnostic_grading", String(e.diagnostic_grading ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "judgment_of_surgical_margin", String(e.judgment_of_surgical_margin ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "closest_distance_to_margin_mm", String(e.closest_distance_to_margin_mm ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "proliferation_index", String(e.proliferation_index ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "mitoses_per_10hpf", String(e.mitoses_per_10hpf ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "extent_of_necrosis", String(e.extent_of_necrosis ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "eortc_response_grade", String(e.eortc_response_grade ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "ihc_performed_status", String(e.ihc_performed_status ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "ihc_result", String(e.ihc_result ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("pathology", idx, "fish_performed_status", String(e.fish_performed_status ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "fish_result", String(e.fish_result ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("pathology", idx, "rna_performed_status", String(e.rna_performed_status ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "rna_result", String(e.rna_result ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("pathology", idx, "dna_performed_status", String(e.dna_performed_status ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "dna_result", String(e.dna_result ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("pathology", idx, "report", String(e.report ?? ""), { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                     </TableRow>
                   ))}
                 </TableBody>
@@ -357,20 +483,20 @@ export default function ExtractedDataPanel({
                 <TableBody>
                   {surgeryEvents.map((e, idx) => (
                     <TableRow key={idx}>
-                      <TableCell sx={pidCellSx}>{(e as any).patient_id ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.surgery_date ?? ""}</TableCell>
-                      <TableCell>{e.indication ?? ""}</TableCell>
-                      <TableCell>{e.surgery_side ?? ""}</TableCell>
-                      <TableCell>{e.anatomic_region ?? ""}</TableCell>
-                      <TableCell>{e.greatest_surgical_tumor_dimension_in_mm ?? ""}</TableCell>
-                      <TableCell>{e.had_tumor_spillage != null ? (e.had_tumor_spillage ? "Yes" : "No") : ""}</TableCell>
+                      <EditableCell {...ec("surgery", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("surgery", idx, "surgery_date", String(e.surgery_date ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("surgery", idx, "indication", String(e.indication ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "surgery_side", String(e.surgery_side ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "anatomic_region", String(e.anatomic_region ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "greatest_surgical_tumor_dimension_in_mm", String(e.greatest_surgical_tumor_dimension_in_mm ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "had_tumor_spillage", e.had_tumor_spillage != null ? (e.had_tumor_spillage ? "Yes" : "No") : "")} />
                       <TableCell>{e.resection?.join(", ") ?? ""}</TableCell>
-                      <TableCell>{e.resected_tumor_margin ?? ""}</TableCell>
-                      <TableCell>{e.reconstruction ?? ""}</TableCell>
-                      <TableCell>{e.amputation ?? ""}</TableCell>
+                      <EditableCell {...ec("surgery", idx, "resected_tumor_margin", String(e.resected_tumor_margin ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "reconstruction", String(e.reconstruction ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "amputation", String(e.amputation ?? ""))} />
                       <TableCell>{e.participated_disciplines?.join(", ") ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.first_revision_details ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.second_revision_details ?? ""}</TableCell>
+                      <EditableCell {...ec("surgery", idx, "first_revision_details", String(e.first_revision_details ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("surgery", idx, "second_revision_details", String(e.second_revision_details ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                     </TableRow>
                   ))}
                 </TableBody>
@@ -420,30 +546,30 @@ export default function ExtractedDataPanel({
                 <TableBody>
                   {sarcomaBoardEvents.map((e, idx) => (
                     <TableRow key={idx}>
-                      <TableCell sx={pidCellSx}>{(e as any).patient_id ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.presentation_date ?? ""}</TableCell>
-                      <TableCell>{e.reason_for_presentation ?? ""}</TableCell>
-                      <TableCell>{e.current_ecog ?? ""}</TableCell>
-                      <TableCell>{e.status_before_follow_up ?? ""}</TableCell>
-                      <TableCell>{e.status_after_follow_up ?? ""}</TableCell>
-                      <TableCell>{e.treatment_before_follow_up ?? ""}</TableCell>
-                      <TableCell>{e.decision_surgery ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.decision_surgery_comment ?? ""}</TableCell>
-                      <TableCell>{e.decision_radio_therapy ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.decision_radio_therapy_comment ?? ""}</TableCell>
-                      <TableCell>{e.decision_systemic_therapy ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.decision_systemic_therapy_comment ?? ""}</TableCell>
-                      <TableCell>{e.decision_follow_up ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.decision_follow_up_comment ?? ""}</TableCell>
-                      <TableCell>{e.decision_diagnostics ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.decision_diagnostics_comment ?? ""}</TableCell>
-                      <TableCell>{e.decision_palliative_care ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.decision_palliative_care_comment ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.question ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.proposed_procedure ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.summary ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.summary_radiology ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.summary_pathology ?? ""}</TableCell>
+                      <EditableCell {...ec("sarcomaBoard", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "presentation_date", String(e.presentation_date ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "reason_for_presentation", String(e.reason_for_presentation ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "current_ecog", String(e.current_ecog ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "status_before_follow_up", String(e.status_before_follow_up ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "status_after_follow_up", String(e.status_after_follow_up ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "treatment_before_follow_up", String(e.treatment_before_follow_up ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_surgery", String(e.decision_surgery ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_surgery_comment", String(e.decision_surgery_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_radio_therapy", String(e.decision_radio_therapy ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_radio_therapy_comment", String(e.decision_radio_therapy_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_systemic_therapy", String(e.decision_systemic_therapy ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_systemic_therapy_comment", String(e.decision_systemic_therapy_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_follow_up", String(e.decision_follow_up ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_follow_up_comment", String(e.decision_follow_up_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_diagnostics", String(e.decision_diagnostics ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_diagnostics_comment", String(e.decision_diagnostics_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_palliative_care", String(e.decision_palliative_care ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_palliative_care_comment", String(e.decision_palliative_care_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "question", String(e.question ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "proposed_procedure", String(e.proposed_procedure ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "summary", String(e.summary ?? ""), { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "summary_radiology", String(e.summary_radiology ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "summary_pathology", String(e.summary_pathology ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                     </TableRow>
                   ))}
                 </TableBody>
@@ -485,20 +611,20 @@ export default function ExtractedDataPanel({
                 <TableBody>
                   {systemicTherapyEvents.map((e, idx) => (
                     <TableRow key={idx}>
-                      <TableCell sx={pidCellSx}>{(e as any).patient_id ?? ""}</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>{e.reason ?? ""}</TableCell>
-                      <TableCell>{e.treatment_line ?? ""}</TableCell>
-                      <TableCell>{e.bone_protocol ?? ""}</TableCell>
-                      <TableCell>{e.softtissue_protocol ?? ""}</TableCell>
-                      <TableCell>{e.cycle_start_date ?? ""}</TableCell>
-                      <TableCell>{e.cycle_end_date ?? ""}</TableCell>
-                      <TableCell>{e.cycles_executed ?? ""}</TableCell>
-                      <TableCell>{e.was_rct_concomittant != null ? (e.was_rct_concomittant ? "Yes" : "No") : ""}</TableCell>
-                      <TableCell>{e.hyperthermia_status ?? ""}</TableCell>
-                      <TableCell>{e.clinical_trial_inclusion ?? ""}</TableCell>
-                      <TableCell>{e.discontinuation_reason ?? ""}</TableCell>
-                      <TableCell>{e.patient_type ?? ""}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.comments ?? ""}</TableCell>
+                      <EditableCell {...ec("systemicTherapy", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("systemicTherapy", idx, "reason", String(e.reason ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("systemicTherapy", idx, "treatment_line", String(e.treatment_line ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "bone_protocol", String(e.bone_protocol ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "softtissue_protocol", String(e.softtissue_protocol ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "cycle_start_date", String(e.cycle_start_date ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "cycle_end_date", String(e.cycle_end_date ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "cycles_executed", String(e.cycles_executed ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "was_rct_concomittant", e.was_rct_concomittant != null ? (e.was_rct_concomittant ? "Yes" : "No") : "")} />
+                      <EditableCell {...ec("systemicTherapy", idx, "hyperthermia_status", String(e.hyperthermia_status ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "clinical_trial_inclusion", String(e.clinical_trial_inclusion ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "discontinuation_reason", String(e.discontinuation_reason ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "patient_type", String(e.patient_type ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "comments", String(e.comments ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.drugs?.map(d => `${d.drug_type} ${d.dose ?? ""}${d.dose_unit ?? ""}`).join("; ") ?? ""}</TableCell>
                       <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.adverse_events?.map(ae => `${ae.event_type} (Grade ${ae.grade})`).join("; ") ?? ""}</TableCell>
                     </TableRow>

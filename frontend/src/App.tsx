@@ -34,6 +34,12 @@ export default function App() {
     setSystemicTherapyEvents(results.systemicTherapyEvents.length > 0 ? results.systemicTherapyEvents : null);
   }, []);
 
+  // Generic inline-edit handler factory
+  const makeUpdateHandler = <T,>(setter: React.Dispatch<React.SetStateAction<T[] | null>>) =>
+    (row: number, field: string, value: string) => {
+      setter(prev => prev?.map((e, i) => i === row ? { ...e, [field]: value } : e) ?? null);
+    };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -55,6 +61,12 @@ export default function App() {
             surgeryEvents={surgeryEvents}
             sarcomaBoardEvents={sarcomaBoardEvents}
             systemicTherapyEvents={systemicTherapyEvents}
+            onUpdateRadiology={makeUpdateHandler<RadiologyEvent>(setRadEvents)}
+            onUpdateRadiotherapy={makeUpdateHandler<RadiotherapyEvent>(setRadiotherapyEvents)}
+            onUpdatePathology={makeUpdateHandler<PathologyEvent>(setPathologyEvents)}
+            onUpdateSurgery={makeUpdateHandler<SurgeryEvent>(setSurgeryEvents)}
+            onUpdateSarcomaBoard={makeUpdateHandler<SarcomaBoardEvent>(setSarcomaBoardEvents)}
+            onUpdateSystemicTherapy={makeUpdateHandler<SystemicTherapyEvent>(setSystemicTherapyEvents)}
           />
         </Container>
 
