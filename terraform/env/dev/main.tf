@@ -26,6 +26,7 @@ module "vm" {
   project-id = var.project-id
   zone = var.zone
   vm-service-account-email = var.vm-service-account-email
+  machine-type = "e2-small"
   frontend_virtual_host     = "dev.shaperag.com"
   frontend_letsencrypt_host = "dev.shaperag.com"
   letsencrypt_email         = var.notify-email
