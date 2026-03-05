@@ -64,8 +64,8 @@ export async function llmExtractByDocId(docId: string): Promise<LlmExtractRespon
 
 export type RadiologyEvent = {
   // IDs
-  institution_id?: number | null
   patient_id?: number | null
+  imported?: boolean | null
 
   // Datum (optional)
   exam_date?: string | null

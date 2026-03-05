@@ -208,57 +208,56 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein vollständiges RadiologyEvent:
 [
   {
     // IDs (optional für LLM-Extraktion)
-    "institution_id": number | null,
     "patient_id": number | null,
 
     // PFLICHTFELD
     "exam_date": "YYYY-MM-DD" (aus dem Bericht extrahieren, z.B. "2024-01-15"),
 
     // Grundlegende Untersuchungs-Informationen
-    "exam_type": "conventional X-Ray" | "MRI" | "CT scan" | "Ultrasound (US)" | "PET-CT" | "PET-MRI" | "Scintigraphy" | "Other" | null,
+    "exam_type": "conventional_x_ray" | "mri" | "ct_scan" | "ultrasound" | "pet_ct" | "pet_mri" | "scintigraphy" | "other" | null,
     "exam_type_comment": string | null,
-    "imaging_timing": "Initial imaging" | "Follow-up imaging" | null,
-    "imaging_type": "Local imaging" | "Systemic imaging" | null,
+    "imaging_timing": "initial_imaging" | "post_neoadjuvant_pre_op" | "immediate_post_op_baseline_6_12_weeks" | "surveillance" | "at_suspicion_of_local_recurrence" | "at_suspicion_of_systemic_recurrence" | null,
+    "imaging_type": "local_imaging" | "systemic_imaging" | null,
 
-    // Läsions-Informationen
-    "location_of_lesion": "Head and neck" | "Trunk" | "Chest" | "Abdomen" | "Pelvis" | "Upper extremity" | "Lower extremity" | "Retroperitoneum" | "Multiple locations" | "Other" | null,
+    // Läsions-Informationen (location_of_lesion = Tiefenlage des Tumors, NICHT anatomische Region!)
+    "location_of_lesion": "epifascial" | "subfascial" | "bone" | null,
     "largest_lesion_size_in_mm": number | null,
     "medium_lesion_size_in_mm": number | null,
     "smallest_lesion_size_in_mm": number | null,
 
     // Response-Kriterien (falls im Bericht erwähnt)
-    "recist_response": "CR (Complete Response)" | "PR (Partial Response)" | "SD (Stable Disease)" | "PD (Progressive Disease)" | "NE (Not Evaluable)" | null,
-    "choi_response": "CR (Complete Response)" | "PR (Partial Response)" | "SD (Stable Disease)" | "PD (Progressive Disease)" | null,
-    "irecist_response": "iCR (immune Complete Response)" | "iPR (immune Partial Response)" | "iSD (immune Stable Disease)" | "iPD (immune Progressive Disease)" | "iUPD (immune Unconfirmed PD)" | null,
-    "pet_response": "CMR (Complete Metabolic Response)" | "PMR (Partial Metabolic Response)" | "SMD (Stable Metabolic Disease)" | "PMD (Progressive Metabolic Disease)" | null,
+    "recist_response": "not_applicable" | "complete_remission_cr" | "partial_remission_pr" | "stable_disease_sd" | "progressive_disease_pd" | null,
+    "choi_response": "not_applicable" | "complete_response_cr" | "partial_response_pr" | "stable_disease_sd" | "progressive_disease_pd" | null,
+    "irecist_response": "not_applicable" | "complete_response_icr" | "partial_response_ipr" | "stable_disease_isd" | "unconfirmed_progressive_iupd" | "confirmed_progression_icpd" | null,
+    "pet_response": "not_applicable" | "complete_metabolic_response_mcr" | "partial_metabolic_response_pmr" | "stable_metabolic_disease_smd" | "progressive_metabolic_disease_pmd" | null,
 
     // Lokale Erkrankung
-    "local_disease_status": "No disease" | "Measurable" | "Non-measurable" | "Unknown" | null,
-    "local_disease_measurable": "Yes" | "No" | "Unknown" | null,
+    "local_disease_status": "no_evidence_of_local_disease" | "residual_viable_local_tumor_suspected" | "indeterminate_post_treatment_change" | "local_recurrence_suspected" | "local_recurrence_confirmed" | null,
+    "local_disease_measurable": "yes" | "no" | "unknown" | null,
     "local_disease_report_largest_diameter": number | null,  // in mm
-    "local_disease_qualitative_mri_response": "Complete response" | "Partial response" | "Stable disease" | "Progressive disease" | null,
+    "local_disease_qualitative_mri_response": "likely_viable" | "indeterminate" | "likely_treatment_effect" | null,
     "local_disease_radiologist_confidence": number | null,  // 1-5
-    "local_disease_pet_metabolic_response": "CMR (Complete Metabolic Response)" | "PMR (Partial Metabolic Response)" | "SMD (Stable Metabolic Disease)" | "PMD (Progressive Metabolic Disease)" | null,
+    "local_disease_pet_metabolic_response": "cmr" | "pmr" | "smd" | "pmd" | null,
 
     // Metastasen - Allgemein
     "metastasis_presence": boolean | null,  // deprecated, aber noch unterstützt
-    "metastasis": "No metastasis" | "Metastasis present" | "Indeterminate" | "Unknown" | null,
-    "anatomic_location_of_metastasis": ["Lung", "Pleura", "Bone", "Liver", "Soft tissue", "Lymph node", "Brain", "Peritoneum", "Other"] | [],  // Array!
+    "metastasis": "no" | "yes" | "indeterminate" | null,
+    "anatomic_location_of_metastasis": ["lung", "pleura", "bone", "liver", "soft_tissue", "lymph_node", "brain", "other"] | [],  // Array!
 
     // Metastasen - Anzahl pro Lokalisation
-    "metastasis_location_lung_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
-    "metastasis_location_pleura_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
-    "metastasis_location_bone_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
-    "metastasis_location_liver_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
-    "metastasis_location_soft_tissue_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
-    "metastasis_location_lymph_node_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
-    "metastasis_location_brain_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
-    "metastasis_location_other_count": "0" | "1" | "2" | "3" | "4-10" | ">10" | "Numerous" | "Unknown" | null,
+    "metastasis_location_lung_count": "one" | "two_to_five" | "more_than_five" | null,
+    "metastasis_location_pleura_count": "one" | "two_to_five" | "more_than_five" | null,
+    "metastasis_location_bone_count": "one" | "two_to_five" | "more_than_five" | null,
+    "metastasis_location_liver_count": "one" | "two_to_five" | "more_than_five" | null,
+    "metastasis_location_soft_tissue_count": "one" | "two_to_five" | "more_than_five" | null,
+    "metastasis_location_lymph_node_count": "one" | "two_to_five" | "more_than_five" | null,
+    "metastasis_location_brain_count": "one" | "two_to_five" | "more_than_five" | null,
+    "metastasis_location_other_count": "one" | "two_to_five" | "more_than_five" | null,
 
     // Metastasen - Messungen
     "metastasis_target_lesion_count": number | null,
     "metastasis_longest_diameter_mm": number | null,
-    "metastasis_indeterminate_category": "Probably benign" | "Indeterminate" | "Suspicious" | null,
+    "metastasis_indeterminate_category": "ipn_low" | "ipn_indeterminate" | "ipn_high" | "unclear" | null,
 
     // Vollständiger Befundtext
     "radiology_report": string | null,  // Der komplette Text aus BEFUND + BEURTEILUNG
@@ -279,16 +278,16 @@ WICHTIGE REGELN:
 
 3. **Metastasen**:
    - "anatomic_location_of_metastasis" ist ein ARRAY (Liste)
-   - Wenn "pulmonale Metastasen" → ["Lung"]
-   - Wenn "ossäre und hepatische Metastasen" → ["Bone", "Liver"]
-   - Count-Felder: Wenn "multiple Lungenmetastasen" → "metastasis_location_lung_count": ">10" oder "Numerous"
+   - Wenn "pulmonale Metastasen" → ["lung"]
+   - Wenn "ossäre und hepatische Metastasen" → ["bone", "liver"]
+   - Count-Felder: Wenn "eine Lungenmetastase" → "one", "2-3 Metastasen" → "two_to_five", "multiple" → "more_than_five"
 
 4. **Response-Kriterien**:
    - Nur füllen wenn EXPLIZIT im Bericht genannt
-   - "komplette Remission" → "CR (Complete Response)"
-   - "partielle Remission" → "PR (Partial Response)"
-   - "stabile Erkrankung" → "SD (Stable Disease)"
-   - "Progress" → "PD (Progressive Disease)"
+   - "komplette Remission" → "complete_remission_cr"
+   - "partielle Remission" → "partial_remission_pr"
+   - "stabile Erkrankung" → "stable_disease_sd"
+   - "Progress" → "progressive_disease_pd"
 
 5. **Befundtext**:
    - "radiology_report": Kopiere BEFUND + BEURTEILUNG hierhin
@@ -305,18 +304,31 @@ WICHTIGE REGELN:
    - Bei Unsicherheit: Lieber EINE Zeile mit allen Infos
 
 BEISPIELE für deutsche Ausdrücke:
-- "MRT Abdomen" → exam_type: "MRI", location_of_lesion: "Abdomen"
-- "Erstuntersuchung" → imaging_timing: "Initial imaging"
-- "Verlaufskontrolle" → imaging_timing: "Follow-up imaging"
-- "lokal fortgeschritten" → local_disease_status: "Measurable"
-- "keine Metastasen" → metastasis: "No metastasis"
-- "unklare Leberläsion" → metastasis: "Indeterminate", metastasis_indeterminate_category: "Indeterminate"
+- "MRT Oberschenkel" → exam_type: "mri"
+- "CT Thorax" → exam_type: "ct_scan"
+- "Erstuntersuchung" → imaging_timing: "initial_imaging"
+- "Verlaufskontrolle" → imaging_timing: "surveillance"
+- "nach neoadjuvanter Therapie" → imaging_timing: "post_neoadjuvant_pre_op"
+- "Verdacht Lokalrezidiv" → imaging_timing: "at_suspicion_of_local_recurrence"
+- "Lokalbildgebung" → imaging_type: "local_imaging"
+- "epifasziales Weichteilsarkom" → location_of_lesion: "epifascial"
+- "subfasziales Sarkom" → location_of_lesion: "subfascial"
+- "keine Metastasen" → metastasis: "no"
+- "Lungenmetastasen vorhanden" → metastasis: "yes", anatomic_location_of_metastasis: ["lung"]
+- "unklare Leberläsion" → metastasis: "indeterminate", metastasis_indeterminate_category: "ipn_indeterminate"
+- "wahrscheinlich benigne" → metastasis_indeterminate_category: "ipn_low"
+- "kein Lokalbefund" → local_disease_status: "no_evidence_of_local_disease"
+- "Resttumor" → local_disease_status: "residual_viable_local_tumor_suspected"
+- "komplette Remission" → recist_response: "complete_remission_cr"
+- "partielle Remission" → recist_response: "partial_remission_pr"
+- "stabile Erkrankung" → recist_response: "stable_disease_sd"
+- "Progress" → recist_response: "progressive_disease_pd"
 
 BEISPIELE für Multi-Event:
-- Bericht: "Knoten im Ellbogen 3,5 cm. Beurteilung: Verdacht auf Sarkom" → 1 Event
+- Bericht: "Knoten im Oberschenkel 3,5 cm. Beurteilung: Verdacht auf Sarkom" → 1 Event
 - Bericht: "Primärtumor Oberschenkel 8 cm. Multiple Lungenmetastasen." → 2 Events
-  Event 1: location_of_lesion="Lower extremity", largest_lesion_size_in_mm=80
-  Event 2: location_of_lesion="Chest", metastasis="Metastasis present", anatomic_location_of_metastasis=["Lung"]
+  Event 1: largest_lesion_size_in_mm=80, location_of_lesion="subfascial"
+  Event 2: metastasis="yes", anatomic_location_of_metastasis=["lung"], metastasis_location_lung_count="more_than_five"
 """
 
     prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nRadiologie-Berichtstext:\n{text}"

@@ -228,7 +228,7 @@ export default function ExtractedDataPanel({
 
       {/* --- RADIOLOGY --- */}
       {radiologyEvents && radiologyEvents.length > 0 && (() => {
-        const headers = ["patient_id", "institution_id", "exam_date", "exam_type", "exam_type_comment", "imaging_timing", "imaging_type", "location_of_lesion", "largest_lesion_size_in_mm", "medium_lesion_size_in_mm", "smallest_lesion_size_in_mm", "recist_response", "choi_response", "irecist_response", "pet_response", "local_disease_status", "local_disease_measurable", "local_disease_report_largest_diameter", "local_disease_qualitative_mri_response", "local_disease_radiologist_confidence", "local_disease_pet_metabolic_response", "metastasis_presence", "metastasis", "anatomic_location_of_metastasis", "metastasis_location_lung_count", "metastasis_location_pleura_count", "metastasis_location_bone_count", "metastasis_location_liver_count", "metastasis_location_soft_tissue_count", "metastasis_location_lymph_node_count", "metastasis_location_brain_count", "metastasis_location_other_count", "metastasis_target_lesion_count", "metastasis_longest_diameter_mm", "metastasis_indeterminate_category", "radiology_report", "report_date"];
+        const headers = ["patient_id", "imported", "exam_date", "exam_type", "exam_type_comment", "imaging_timing", "imaging_type", "location_of_lesion", "largest_lesion_size_in_mm", "medium_lesion_size_in_mm", "smallest_lesion_size_in_mm", "recist_response", "choi_response", "irecist_response", "pet_response", "local_disease_status", "local_disease_measurable", "local_disease_report_largest_diameter", "local_disease_qualitative_mri_response", "local_disease_radiologist_confidence", "local_disease_pet_metabolic_response", "metastasis_presence", "metastasis", "anatomic_location_of_metastasis", "metastasis_location_lung_count", "metastasis_location_pleura_count", "metastasis_location_bone_count", "metastasis_location_liver_count", "metastasis_location_soft_tissue_count", "metastasis_location_lymph_node_count", "metastasis_location_brain_count", "metastasis_location_other_count", "metastasis_target_lesion_count", "metastasis_longest_diameter_mm", "metastasis_indeterminate_category", "radiology_report", "report_date"];
         return (
           <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 3 }}>
             <Typography variant="subtitle1" gutterBottom>Radiology</Typography>
@@ -237,7 +237,7 @@ export default function ExtractedDataPanel({
                 <TableHead>
                   <TableRow>
                     <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}>Institution ID</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}>Imported</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Exam Date *</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Exam Type</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Exam Type Comment</TableCell>
@@ -279,7 +279,7 @@ export default function ExtractedDataPanel({
                   {radiologyEvents.map((e, idx) => (
                     <TableRow key={idx}>
                       <EditableCell {...ec("radiology", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
-                      <EditableCell {...ec("radiology", idx, "institution_id", String(e.institution_id ?? ""))} />
+                      <EditableCell {...ec("radiology", idx, "imported", e.imported == null ? "" : String(e.imported))} />
                       <EditableCell {...ec("radiology", idx, "exam_date", String(e.exam_date ?? ""), { fontWeight: 'bold' })} />
                       <EditableCell {...ec("radiology", idx, "exam_type", String(e.exam_type ?? ""))} />
                       <EditableCell {...ec("radiology", idx, "exam_type_comment", String(e.exam_type_comment ?? ""))} />
