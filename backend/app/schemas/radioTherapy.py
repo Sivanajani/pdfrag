@@ -3,45 +3,46 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import Enum
 from typing import Optional, List
+import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class RadiotherapyIndication(str, Enum):
-    preoperative = "[1] preoperative"
-    postoperative = "[2] postoperative"
-    definitive = "[3] definitive"
-    palliative = "[4] palliative"
-    other_unknown = "[8] other/ unknown"
+    preoperative = "preoperative"
+    postoperative = "postoperative"
+    definitive = "definitive"
+    palliative = "palliative"
+    curative = "curative"
 
 
 class RadiotherapyType(str, Enum):
-    imrt = "[1] Intensity modulated radiotherapy (IMRT)"
-    vmat = "[2] volumetric arc VMAT"
-    conv_3d = "[3] conventional 3D"
-    stereotactic = "[4] stereotactic radiotherapy"
-    proton = "[5] proton therapy"
-    linac = "[6] intraoperative (Linac)"
-    brachytherapy = "[7] intraoperative brachytherapy"
-    other = "[8] other"
+    intensity_modulated_radiotherapy_imrt = "intensity_modulated_radiotherapy_imrt"
+    lattice_lrt = "lattice_lrt"
+    volumetric_arc_vmat = "volumetric_arc_vmat"
+    conventional_3d = "conventional_3d"
+    stereotactic_radiotherapy = "stereotactic_radiotherapy"
+    proton_therapy = "proton_therapy"
+    intraoperative_linac = "intraoperative_linac"
+    intraoperative_brachytherapy = "intraoperative_brachytherapy"
+    brachytherapy = "brachytherapy"
+    sequential_boost = "sequential_boost"
+    simultaneous_integrated_boost = "simultaneous_integrated_boost"
 
 
 class HyperthermiaStatus(str, Enum):
     """
-    WICHTIG: In der DB ist hyperthermia_status ein STRING, nicht INT!
+    WICHTIG: In der DB ist hyperthermia_status ein STRING!
+    Constraint-Werte laut db/constraints/radio_therapy/hyperthermia_status.yml
     """
-    none = "None"
-    planned = "Planned"
-    ongoing = "Ongoing"
-    completed = "Completed"
-    no = "No"
-    yes = "Yes"
+    no = "no"
+    yes_radiation_hyperthermia = "yes_radiation_hyperthermia"
 
 
 class RadiotherapyEvent(BaseModel):
     """
     Repräsentiert eine Zeile aus der croms_radio_therapies Tabelle.
-    WICHTIG: Viele Felder sind Arrays in der DB!
+    WICHTIG: indications und therapy_types sind Arrays in der DB!
     """
 
     # IDs (in DB nicht nullable, aber hier optional für LLM-Extraktion)
@@ -60,15 +61,15 @@ class RadiotherapyEvent(BaseModel):
     therapy_end_date: Optional[date] = Field(default=None, description="Therapieende")
 
     # Indikationen - ARRAY! (in DB: indications ARRAY)
-    indications: List[RadiotherapyIndication] = Field(
+    indications: List[str] = Field(
         default_factory=list,
         description="Indikationen (mehrere möglich, z.B. preoperative + postoperative)"
     )
 
     # Therapietypen - ARRAY! (in DB: therapy_types ARRAY, NOT NULL!)
-    therapy_types: List[RadiotherapyType] = Field(
+    therapy_types: List[str] = Field(
         default_factory=list,
-        description="Therapietypen (mehrere möglich, z.B. IMRT + stereotactic)"
+        description="Therapietypen (mehrere möglich, z.B. imrt + stereotactic)"
     )
 
     # Dosierung (DB-Feldnamen: total_dose_in_gy, given_fractions)
@@ -106,7 +107,7 @@ class RadiotherapyEvent(BaseModel):
     )
 
     # Hyperthermie
-    hyperthermia_status: Optional[HyperthermiaStatus] = None
+    hyperthermia_status: Optional[str] = None
 
     # Kommentare (DB-Feldname: comments, nicht remarks!)
     comments: Optional[str] = Field(
@@ -114,6 +115,181 @@ class RadiotherapyEvent(BaseModel):
         max_length=2000,
         description="Kommentare zur Radiotherapie"
     )
+
+    @staticmethod
+    def _normalize_indication(value) -> Optional[str]:
+        """
+        Normalisiert Synonyme auf gültige DB-Constraint-Werte.
+        Constraint-Werte laut db/constraints/radio_therapy/indications.yml:
+        preoperative, postoperative, definitive, palliative, curative
+        """
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            return None
+
+        raw = value.strip()
+        if not raw:
+            return None
+
+        lower = raw.lower()
+        compact = re.sub(r"[\s\-]+", "_", lower)
+        compact = re.sub(r"[^a-z_]", "", compact)
+
+        allowed = {"preoperative", "postoperative", "definitive", "palliative", "curative"}
+        if lower in allowed:
+            return lower
+        if compact in allowed:
+            return compact
+
+        # Old enum format: "[1] preoperative" → strip number prefix
+        if "preoperative" in lower or "präoperativ" in lower or "neoadjuvant" in lower:
+            return "preoperative"
+        if "postoperative" in lower or "postoperativ" in lower or "adjuvant" in lower:
+            return "postoperative"
+        if "definitive" in lower or "definitiv" in lower:
+            return "definitive"
+        if "palliative" in lower or "palliativ" in lower:
+            return "palliative"
+        if "curative" in lower or "kurativ" in lower:
+            return "curative"
+
+        # No mapping → preserve raw text
+        return raw
+
+    @staticmethod
+    def _normalize_therapy_type(value) -> Optional[str]:
+        """
+        Normalisiert Synonyme auf gültige DB-Constraint-Werte.
+        Constraint-Werte laut db/constraints/radio_therapy/therapy_types.yml:
+        intensity_modulated_radiotherapy_imrt, lattice_lrt, volumetric_arc_vmat,
+        conventional_3d, stereotactic_radiotherapy, proton_therapy,
+        intraoperative_linac, intraoperative_brachytherapy, brachytherapy,
+        sequential_boost, simultaneous_integrated_boost
+        """
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            return None
+
+        raw = value.strip()
+        if not raw:
+            return None
+
+        lower = raw.lower()
+        compact = re.sub(r"[\s\-/\.()]+", "_", lower)
+        compact = re.sub(r"[^a-z0-9_]", "", compact)
+
+        allowed = {
+            "intensity_modulated_radiotherapy_imrt", "lattice_lrt", "volumetric_arc_vmat",
+            "conventional_3d", "stereotactic_radiotherapy", "proton_therapy",
+            "intraoperative_linac", "intraoperative_brachytherapy", "brachytherapy",
+            "sequential_boost", "simultaneous_integrated_boost",
+        }
+        if lower in allowed:
+            return lower
+        if compact in allowed:
+            return compact
+
+        # Synonym-Mapping (old enum format + DE/EN free text)
+        if "imrt" in lower or "intensity modulated" in lower or "intensitätsmoduliert" in lower:
+            return "intensity_modulated_radiotherapy_imrt"
+        if "lattice" in lower or "lrt" == lower.strip():
+            return "lattice_lrt"
+        if "vmat" in lower or "volumetric arc" in lower:
+            return "volumetric_arc_vmat"
+        if "intraoperative" in lower and ("linac" in lower or "linear" in lower):
+            return "intraoperative_linac"
+        if "intraoperative" in lower and "brachy" in lower:
+            return "intraoperative_brachytherapy"
+        if "brachy" in lower:
+            return "brachytherapy"
+        if "sequential" in lower or "sequenziell" in lower or "sequential boost" in lower:
+            return "sequential_boost"
+        if "simultaneous integrated" in lower or "simultane" in lower or "sib" in lower:
+            return "simultaneous_integrated_boost"
+        if "stereotactic" in lower or "stereotaktisch" in lower or "sbrt" in lower or "srs" in lower:
+            return "stereotactic_radiotherapy"
+        if "proton" in lower:
+            return "proton_therapy"
+        if "conventional" in lower or "konventionell" in lower or "3d" in lower:
+            return "conventional_3d"
+
+        # No mapping → preserve raw text
+        return raw
+
+    @staticmethod
+    def _normalize_hyperthermia_status(value) -> Optional[str]:
+        """
+        Normalisiert Hyperthermie-Status auf gültige DB-Constraint-Werte.
+        Constraint-Werte laut db/constraints/radio_therapy/hyperthermia_status.yml:
+        no, yes_radiation_hyperthermia
+        """
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            return None
+
+        raw = value.strip()
+        if not raw:
+            return None
+
+        lower = raw.lower()
+        compact = re.sub(r"[\s\-]+", "_", lower)
+        compact = re.sub(r"[^a-z_]", "", compact)
+
+        allowed = {"no", "yes_radiation_hyperthermia"}
+        if lower in allowed:
+            return lower
+        if compact in allowed:
+            return compact
+
+        # Old enum values + free text (DE/EN)
+        if any(token in lower for token in ["yes_radiation", "yes radiation"]):
+            return "yes_radiation_hyperthermia"
+        if any(token in lower for token in ["hypertherm", "yes", "ja", "planned", "geplant", "ongoing", "completed", "durchgeführt"]):
+            return "yes_radiation_hyperthermia"
+        if any(token in lower for token in ["no", "none", "nein", "nicht", "kein"]):
+            return "no"
+
+        # No mapping → preserve raw text
+        return raw
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_radiotherapy_fields(cls, data):
+        if not isinstance(data, dict):
+            return data
+
+        # indications list → normalize each element
+        raw_indications = data.get("indications") or []
+        if isinstance(raw_indications, list):
+            normalized = []
+            for v in raw_indications:
+                n = cls._normalize_indication(v)
+                if n is not None:
+                    normalized.append(n)
+            data["indications"] = normalized
+
+        # therapy_types list → normalize each element
+        raw_types = data.get("therapy_types") or []
+        if isinstance(raw_types, list):
+            normalized = []
+            for v in raw_types:
+                n = cls._normalize_therapy_type(v)
+                if n is not None:
+                    normalized.append(n)
+            data["therapy_types"] = normalized
+
+        # hyperthermia_status
+        hyp_raw = data.get("hyperthermia_status")
+        hyp_normalized = cls._normalize_hyperthermia_status(hyp_raw)
+        if hyp_normalized is not None:
+            data["hyperthermia_status"] = hyp_normalized
+        elif hyp_raw is None or (isinstance(hyp_raw, str) and not hyp_raw.strip()):
+            data["hyperthermia_status"] = None
+
+        return data
 
     @field_validator(
         "referral_date",

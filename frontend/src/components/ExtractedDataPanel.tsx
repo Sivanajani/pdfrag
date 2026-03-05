@@ -327,18 +327,20 @@ export default function ExtractedDataPanel({
 
       {/* --- RADIOTHERAPY --- */}
       {radiotherapyEvents && radiotherapyEvents.length > 0 && (() => {
-        const headers = ["patient_id", "referral_date", "first_contact_date", "therapy_start_date", "therapy_end_date", "indications", "therapy_types", "total_dose_in_gy", "given_fractions", "ptv_volume_in_cm3", "gtv_volume_in_cm3", "hyperthermia_status", "comments"];
+        const headers = ["patient_id", "institution_id", "responsible_oncologist_id", "referral_date", "first_contact_date", "therapy_start_date", "therapy_end_date", "indications", "therapy_types", "total_dose_in_gy", "given_fractions", "ptv_volume_in_cm3", "gtv_volume_in_cm3", "was_tumor_located_in_radiated_area", "was_tumor_located_with_pre_existing_lymph_edema", "hyperthermia_status", "comments"];
         return (
           <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 3 }}>
             <Typography variant="subtitle1" gutterBottom>Radiotherapy</Typography>
             <Box sx={{ overflowX: "auto", maxWidth: "100%" }}>
               <Table size="small" sx={{ minWidth: 2000 }}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Referral Date</TableCell>
-                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>First Contact</TableCell>
-                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Therapy Start</TableCell>
+                    <TableRow>
+                      <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
+                      <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Institution ID</TableCell>
+                      <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Oncologist ID</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Referral Date</TableCell>
+                      <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>First Contact</TableCell>
+                      <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Therapy Start</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Therapy End</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Indications</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Therapy Types</TableCell>
@@ -346,6 +348,8 @@ export default function ExtractedDataPanel({
                     <TableCell sx={{ bgcolor: 'success.light' }}>Fractions</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>PTV (cm3)</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>GTV (cm3)</TableCell>
+                    <TableCell sx={{ bgcolor: 'error.light' }}>Tumor in radiated area</TableCell>
+                    <TableCell sx={{ bgcolor: 'error.light' }}>Pre-existing lymphedema</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Hyperthermia</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Comments</TableCell>
                   </TableRow>
@@ -354,6 +358,8 @@ export default function ExtractedDataPanel({
                   {radiotherapyEvents.map((e, idx) => (
                     <TableRow key={idx}>
                       <EditableCell {...ec("radiotherapy", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("radiotherapy", idx, "institution_id", String((e as any).institution_id ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "responsible_oncologist_id", String((e as any).responsible_oncologist_id ?? ""))} />
                       <EditableCell {...ec("radiotherapy", idx, "referral_date", String(e.referral_date ?? ""), { fontWeight: 'bold' })} />
                       <EditableCell {...ec("radiotherapy", idx, "first_contact_date", String(e.first_contact_date ?? ""))} />
                       <EditableCell {...ec("radiotherapy", idx, "therapy_start_date", String(e.therapy_start_date ?? ""))} />
@@ -364,6 +370,8 @@ export default function ExtractedDataPanel({
                       <EditableCell {...ec("radiotherapy", idx, "given_fractions", String(e.given_fractions ?? ""))} />
                       <EditableCell {...ec("radiotherapy", idx, "ptv_volume_in_cm3", String(e.ptv_volume_in_cm3 ?? ""))} />
                       <EditableCell {...ec("radiotherapy", idx, "gtv_volume_in_cm3", String(e.gtv_volume_in_cm3 ?? ""))} />
+                      <EditableCell {...ec("radiotherapy", idx, "was_tumor_located_in_radiated_area", e.was_tumor_located_in_radiated_area == null ? "" : String(e.was_tumor_located_in_radiated_area))} />
+                      <EditableCell {...ec("radiotherapy", idx, "was_tumor_located_with_pre_existing_lymph_edema", e.was_tumor_located_with_pre_existing_lymph_edema == null ? "" : String(e.was_tumor_located_with_pre_existing_lymph_edema))} />
                       <EditableCell {...ec("radiotherapy", idx, "hyperthermia_status", String(e.hyperthermia_status ?? ""))} />
                       <EditableCell {...ec("radiotherapy", idx, "comments", String(e.comments ?? ""), { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                     </TableRow>
