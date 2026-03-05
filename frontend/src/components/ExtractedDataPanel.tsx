@@ -378,22 +378,31 @@ export default function ExtractedDataPanel({
 
       {/* --- PATHOLOGY --- */}
       {pathologyEvents && pathologyEvents.length > 0 && (() => {
-        const headers = ["patient_id", "biopsy_type", "biopsied_lesion_type", "biopsy_resection_date", "who_diagnosis", "diagnostic_grading", "judgment_of_surgical_margin", "closest_distance_to_margin_mm", "proliferation_index", "mitoses_per_10hpf", "extent_of_necrosis", "eortc_response_grade", "ihc_performed_status", "ihc_result", "fish_performed_status", "fish_result", "rna_performed_status", "rna_result", "dna_performed_status", "dna_result", "report"];
+        const headers = ["patient_id", "institution_id", "responsible_pathologist_id", "biopsy_type", "biopsied_lesion_type", "biopsy_resection_date", "registrate_date", "first_report_date", "final_report_date", "report_date", "prior_treatment", "who_diagnosis", "diagnostic_grading", "judgment_of_surgical_margin", "closest_distance_to_margin_mm", "biological_barrier_to_closest_margin", "biological_barrier_to_closest_margin_comment", "proliferation_index", "mitoses_per_10hpf", "extent_of_necrosis", "eortc_response_grade", "ihc_performed_status", "ihc_result", "fish_performed_status", "fish_result", "rna_performed_status", "rna_result", "dna_performed_status", "dna_result", "report"];
         return (
           <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 3 }}>
             <Typography variant="subtitle1" gutterBottom>Pathology</Typography>
             <Box sx={{ overflowX: "auto", maxWidth: "100%" }}>
-              <Table size="small" sx={{ minWidth: 2700 }}>
+              <Table size="small" sx={{ minWidth: 3500 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Institution ID</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Pathologist ID</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Biopsy Type</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Lesion Type</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Biopsy Date</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Registrate Date</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>First Report Date</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Final Report Date</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Report Date</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Prior Treatment</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'warning.light' }}>WHO Diagnosis</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Grading</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Surgical Margin</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Margin Distance (mm)</TableCell>
+                    <TableCell sx={{ bgcolor: 'success.light' }}>biological_barrier_to_closest_margin</TableCell>
+                    <TableCell sx={{ bgcolor: 'success.light' }}>Barrier Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>Ki-67</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>Mitoses/10 HPF</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>Necrosis</TableCell>
@@ -413,13 +422,22 @@ export default function ExtractedDataPanel({
                   {pathologyEvents.map((e, idx) => (
                     <TableRow key={idx}>
                       <EditableCell {...ec("pathology", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("pathology", idx, "institution_id", String(e.institution_id ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "responsible_pathologist_id", String(e.responsible_pathologist_id ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "biopsy_type", String(e.biopsy_type ?? ""), { fontWeight: 'bold' })} />
                       <EditableCell {...ec("pathology", idx, "biopsied_lesion_type", String(e.biopsied_lesion_type ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "biopsy_resection_date", String(e.biopsy_resection_date ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "registrate_date", String(e.registrate_date ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "first_report_date", String(e.first_report_date ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "final_report_date", String(e.final_report_date ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "report_date", String(e.report_date ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "prior_treatment", String(e.prior_treatment ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "who_diagnosis", String(e.who_diagnosis ?? ""), { fontWeight: 'bold' })} />
                       <EditableCell {...ec("pathology", idx, "diagnostic_grading", String(e.diagnostic_grading ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "judgment_of_surgical_margin", String(e.judgment_of_surgical_margin ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "closest_distance_to_margin_mm", String(e.closest_distance_to_margin_mm ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "biological_barrier_to_closest_margin", String(e.biological_barrier_to_closest_margin ?? ""))} />
+                      <EditableCell {...ec("pathology", idx, "biological_barrier_to_closest_margin_comment", String(e.biological_barrier_to_closest_margin_comment ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "proliferation_index", String(e.proliferation_index ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "mitoses_per_10hpf", String(e.mitoses_per_10hpf ?? ""))} />
                       <EditableCell {...ec("pathology", idx, "extent_of_necrosis", String(e.extent_of_necrosis ?? ""))} />

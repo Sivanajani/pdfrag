@@ -286,6 +286,7 @@ export type PathologyEvent = {
   responsible_pathologist_id?: number | null
 
   // Biopsie/Resektion
+  // preferred values are DB constraints; unmapped raw text may also be returned
   biopsy_type?: string | null
   biopsied_lesion_type?: string | null
   biopsy_resection_date?: string | null

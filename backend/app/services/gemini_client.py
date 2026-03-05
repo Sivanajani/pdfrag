@@ -463,19 +463,22 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein RadiotherapyEvent:
     "therapy_start_date": "YYYY-MM-DD" | null,
     "therapy_end_date": "YYYY-MM-DD" | null,
 
-    // Indikationen - ARRAY!
-    "indications": ["[1] preoperative" | "[2] postoperative" | "[3] definitive" | "[4] palliative" | "[8] other/ unknown"],
+    // Indikationen - ARRAY! (Erlaubte DB-Codes)
+    "indications": ["preoperative" | "postoperative" | "definitive" | "palliative" | "curative"],
 
-    // Therapietypen - ARRAY!
+    // Therapietypen - ARRAY! (Erlaubte DB-Codes)
     "therapy_types": [
-      "[1] Intensity modulated radiotherapy (IMRT)" |
-      "[2] volumetric arc VMAT" |
-      "[3] conventional 3D" |
-      "[4] stereotactic radiotherapy" |
-      "[5] proton therapy" |
-      "[6] intraoperative (Linac)" |
-      "[7] intraoperative brachytherapy" |
-      "[8] other"
+      "intensity_modulated_radiotherapy_imrt" |
+      "lattice_lrt" |
+      "volumetric_arc_vmat" |
+      "conventional_3d" |
+      "stereotactic_radiotherapy" |
+      "proton_therapy" |
+      "intraoperative_linac" |
+      "intraoperative_brachytherapy" |
+      "brachytherapy" |
+      "sequential_boost" |
+      "simultaneous_integrated_boost"
     ],
 
     // Dosierung
@@ -490,8 +493,8 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein RadiotherapyEvent:
     "was_tumor_located_in_radiated_area": boolean | null,
     "was_tumor_located_with_pre_existing_lymph_edema": boolean | null,
 
-    // Hyperthermie
-    "hyperthermia_status": "None" | "Planned" | "Ongoing" | "Completed" | "No" | "Yes" | null,
+    // Hyperthermie (Erlaubte DB-Codes)
+    "hyperthermia_status": "no" | "yes_radiation_hyperthermia" | null,
 
     // Kommentare
     "comments": string | null  // Max 2000 Zeichen
@@ -512,33 +515,46 @@ WICHTIGE REGELN:
    - "25 Fraktionen" → given_fractions: 25
    - "5 x 5 Gy" → total_dose_in_gy: 25, given_fractions: 5
 
-3. **Indikationen** (ARRAY!):
-   - "präoperativ" → ["[1] preoperative"]
-   - "postoperativ" → ["[2] postoperative"]
-   - "definitiv" → ["[3] definitive"]
-   - "palliativ" → ["[4] palliative"]
-   - Mehrere möglich: ["[1] preoperative", "[2] postoperative"]
+3. **Indikationen** (ARRAY! Erlaubte DB-Codes):
+   - "präoperativ" / "neoadjuvant" → ["preoperative"]
+   - "postoperativ" / "adjuvant" → ["postoperative"]
+   - "definitiv" → ["definitive"]
+   - "palliativ" → ["palliative"]
+   - "kurativ" → ["curative"]
+   - Mehrere möglich: ["preoperative", "postoperative"]
 
-4. **Therapietypen** (ARRAY!):
-   - "IMRT" → ["[1] Intensity modulated radiotherapy (IMRT)"]
-   - "VMAT" → ["[2] volumetric arc VMAT"]
-   - "stereotaktisch" oder "SBRT" → ["[4] stereotactic radiotherapy"]
-   - "Protonentherapie" → ["[5] proton therapy"]
-   - Mehrere möglich: ["[1] Intensity modulated radiotherapy (IMRT)", "[4] stereotactic radiotherapy"]
+4. **Therapietypen** (ARRAY! Erlaubte DB-Codes):
+   - "IMRT" / "intensitätsmoduliert" → ["intensity_modulated_radiotherapy_imrt"]
+   - "VMAT" / "volumetric arc" → ["volumetric_arc_vmat"]
+   - "Lattice" / "LRT" → ["lattice_lrt"]
+   - "konventionell 3D" → ["conventional_3d"]
+   - "stereotaktisch" / "SBRT" / "SRS" → ["stereotactic_radiotherapy"]
+   - "Protonentherapie" → ["proton_therapy"]
+   - "intraoperativ Linac" → ["intraoperative_linac"]
+   - "intraoperative Brachytherapie" → ["intraoperative_brachytherapy"]
+   - "Brachytherapie" → ["brachytherapy"]
+   - "sequenzieller Boost" → ["sequential_boost"]
+   - "simultaner integrierter Boost" / "SIB" → ["simultaneous_integrated_boost"]
+   - Mehrere möglich: ["intensity_modulated_radiotherapy_imrt", "sequential_boost"]
 
-5. **Volumina**:
+5. **Hyperthermie** (Erlaubte DB-Codes):
+   - Keine / nicht durchgeführt → "no"
+   - Durchgeführt / geplant / ja → "yes_radiation_hyperthermia"
+
+6. **Volumina**:
    - "PTV 500 cm³" → ptv_volume_in_cm3: 500
    - "GTV 120 cm³" → gtv_volume_in_cm3: 120
 
-6. **Fehlende Werte**:
+7. **Fehlende Werte**:
    - Wenn Information nicht im Bericht: null oder leeres Array []
    - Niemals raten oder erfinden!
 
 BEISPIELE für deutsche Ausdrücke:
-- "neoadjuvante Radiochemotherapie" → indications: ["[1] preoperative"]
+- "neoadjuvante Radiochemotherapie" → indications: ["preoperative"]
 - "50 Gy in 25 Fraktionen" → total_dose_in_gy: 50, given_fractions: 25
-- "IMRT-Plan" → therapy_types: ["[1] Intensity modulated radiotherapy (IMRT)"]
+- "IMRT-Plan" → therapy_types: ["intensity_modulated_radiotherapy_imrt"]
 - "Therapiebeginn 15.01.2024" → therapy_start_date: "2024-01-15"
+- "Hyperthermie: durchgeführt" → hyperthermia_status: "yes_radiation_hyperthermia"
 """
 
     prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nStrahlentherapie-Berichtstext:\n{text}"
@@ -603,8 +619,8 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein PathologyEvent:
     "responsible_pathologist_id": number | null,
 
     // Biopsie/Resektion
-    "biopsy_type": "Incisional biopsy" | "Excisional biopsy" | "Core needle biopsy" | "Fine needle aspiration (FNA)" | "Punch biopsy" | "Resection specimen" | "Other" | null,
-    "biopsied_lesion_type": "Primary tumor" | "Recurrent tumor" | "Metastasis" | "Lymph node" | "Other" | null,
+    "biopsy_type": "fine_needle" | "core_biopsy" | "open_incisional_with_suspicion_of_sarcoma" | "open_incisional_without_suspicion_of_sarcoma" | "excisional_with_suspicion_of_sarcoma" | "excisional_without_supsicion_of_sarcoma_whoops" | null,
+    "biopsied_lesion_type": "biopsy_of_the_primary_tumor" | "biopsy_of_local_recurrence" | "biopsy_of_metastases" | "resection_of_the_primary_tumor" | "resection_of_local_recurrence" | "resection_of_metastases" | null,
     "biopsy_resection_date": "YYYY-MM-DD" | null,
 
     // Befund-Daten
@@ -614,43 +630,43 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein PathologyEvent:
     "report_date": "YYYY-MM-DD" | null,
 
     // Vorbehandlung
-    "prior_treatment": "None" | "Chemotherapy" | "Radiotherapy" | "Surgery" | "Combined treatment" | "Other" | null,
+    "prior_treatment": "no" | "radiotherapy" | "chemotherapy" | "radiotherapy_and_chemotherapy" | "unknown",
 
     // Diagnose
-    "who_diagnosis": string | null,  // z.B. "High-grade myxofibrosarcoma"
+    "who_diagnosis": string | null,  // DB-Code bevorzugt (z.B. "1_3_2_myxoid_liposarcoma"), sonst exakter WHO-Name aus dem Bericht
 
     // Grading
-    "diagnostic_grading": "G1 (well differentiated)" | "G2 (moderately differentiated)" | "G3 (poorly differentiated)" | "GX (cannot be assessed)" | null,
+    "diagnostic_grading": "not_a_sarcoma" | "g1" | "g2" | "g3" | "benign" | "suspicious_of_malignancy" | "non_diagnostic" | "not_applicable" | "intermediate" | null,
 
     // Chirurgischer Rand
-    "judgment_of_surgical_margin": "R0 (complete resection, negative margins)" | "R1 (microscopic residual tumor)" | "R2 (macroscopic residual tumor)" | "Unknown" | "Not applicable (biopsy only)" | null,
+    "judgment_of_surgical_margin": "ro_wide_margin" | "r1a_marginal_margin_planned_close_ultimative_positive" | "r1b_marginal_margin_positive_after_tumor_bed_re_exicision" | "r1c_marginal_margin_inadvertent_positive_margin" | "r2_intralesional_margin" | "curettage" | "not_applicable_because_no_sarcoma" | null,
     "closest_distance_to_margin_mm": number | null,
-    "biological_barrier_to_closest_margin": "None" | "Fascia" | "Periosteum" | "Adventitia" | "Capsule" | "Other" | null,
+    "biological_barrier_to_closest_margin": "none" | "fascia" | "adventitia" | "perineurium" | "periosteum" | "growth_plate" | "other" | "non_applicable" | null,
     "biological_barrier_to_closest_margin_comment": string | null,
 
     // Tumor-Charakteristika
-    "proliferation_index": string | null,  // z.B. "Ki-67: 40%"
-    "mitoses_per_10hpf": string | null,     // z.B. "15/10 HPF"
-    "extent_of_necrosis": string | null,    // z.B. "<10%" oder "50-90%"
+    "proliferation_index": "less_than_10_percent" | "11_to_20_percent" | "21_to_30_percent" | "31_to_40_percent" | "41_to_50_percent" | "51_to_60_percent" | "61_to_70_percent" | "71_to_80_percent" | "81_to_90_percent" | "more_than_90_percent" | "not_applicable_because_of_therapy_before_biopsy_or_necrosis" | null,  // Ki-67-Wert als Bereich: z.B. Ki-67 40% → "31_to_40_percent"
+    "mitoses_per_10hpf": "less_than_10_mitoses_per_10hpf" | "10_to_19_mitoses_per_10hpf" | "more_than_19_mitoses_per_10hpf" | "not_applicable_in_cases_with_neoadjuvant_therapy_necrosis" | null,
+    "extent_of_necrosis": "less_than_10_percent" | "11_to_20_percent" | "21_to_30_percent" | "31_to_40_percent" | "41_to_50_percent" | "51_to_60_percent" | "61_to_70_percent" | "71_to_80_percent" | "81_to_90_percent" | "more_than_90_percent" | null,
 
     // Response nach neoadjuvanter Therapie
-    "eortc_response_grade": "Grade 1 (no therapy effect)" | "Grade 2 (< 50% necrosis)" | "Grade 3 (50-90% necrosis)" | "Grade 4 (> 90% necrosis)" | "Not applicable" | null,
+    "eortc_response_grade": "grade_a" | "grade_b" | "grade_c" | "grade_d" | "grade_e" | null,
 
     // Molekularpathologie - IHC
-    "ihc_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
-    "ihc_result": string | null,  // Max 2000 Zeichen
+    "ihc_performed_status": "yes" | "no" | "not_yet_but_planned" | null,
+    "ihc_result": "positive" | "negative" | "not_interpretable" | "in_progress" | null,
 
     // FISH
-    "fish_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
-    "fish_result": string | null,  // z.B. "MDM2 amplified"
+    "fish_performed_status": "yes" | "no" | "not_yet_but_planned" | null,
+    "fish_result": "positive" | "negative" | "not_interpretable" | "in_progress" | null,
 
     // RNA-Sequenzierung
-    "rna_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
-    "rna_result": string | null,  // z.B. "SS18-SSX1 fusion"
+    "rna_performed_status": "yes" | "no" | "not_yet_but_planned" | null,
+    "rna_result": "positive" | "negative" | "not_interpretable" | "in_progress" | null,
 
     // DNA-Sequenzierung
-    "dna_performed_status": "Not performed" | "Performed" | "Pending" | "Not applicable" | null,
-    "dna_result": string | null,  // z.B. "TP53 mutation"
+    "dna_performed_status": "yes" | "no" | "not_yet_but_planned" | null,
+    "dna_result": "positive" | "negative" | "not_interpretable" | "in_progress" | null,
 
     // Vollständiger Befund
     "report": string | null  // Max 10000 Zeichen
@@ -659,33 +675,185 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein PathologyEvent:
 
 WICHTIGE REGELN:
 
-1. **WHO-Diagnose**:
-   - Exakte Formulierung aus dem Bericht übernehmen
-   - z.B. "High-grade pleomorphic sarcoma NOS"
-   - z.B. "Myxofibrosarcoma, high grade"
+1. **WHO-Diagnose** (who_diagnosis):
+   - Bevorzugt: exakter DB-Code im Format "X_Y_Z_diagnosename" (z.B. "1_3_2_myxoid_liposarcoma")
+   - Fallback: exakter WHO-Diagnosename aus dem Bericht (z.B. "Myxoid liposarcoma")
+   - Code-Format: Ziffern_Untergruppe_Kurzname
+     - Soft Tissue Tumoren: Präfix 1–12 (z.B. "4_2_1_synovial_sarcoma")
+     - Knochen-Tumoren: Präfix 13–22 (z.B. "13_3_1_conventional_chondrosarcoma", "13_9_1_osteosarcoma_nos")
+     - Sonstige: gs_ (genetische Syndrome), m_ (Metastasen), b_ (hämatopoietisch), ot_ (andere)
+   - Beispiele:
+     - Myxoid liposarcoma           → "1_3_2_myxoid_liposarcoma"
+     - Synovial sarcoma             → "4_2_1_synovial_sarcoma"
+     - Conventional chondrosarcoma  → "13_3_1_conventional_chondrosarcoma"
+     - Osteosarcoma NOS             → "13_9_1_osteosarcoma_nos"
+   - Wenn kein klarer Wert erkennbar → null
 
-2. **Grading**:
-   - "G1" oder "gut differenziert" → "G1 (well differentiated)"
-   - "G2" oder "mäßig differenziert" → "G2 (moderately differentiated)"
-   - "G3" oder "schlecht differenziert" → "G3 (poorly differentiated)"
+2. **Grading** (erlaubte Werte aus db/constraints/pathology/diagnostic_grading.yml):
+   - "G1" / "gut differenziert" / "well differentiated" → "g1"
+   - "G2" / "mäßig differenziert" / "moderately differentiated" → "g2"
+   - "G3" / "schlecht differenziert" / "poorly differentiated" / "high grade" → "g3"
+   - "GX" / "cannot be assessed" → "not_applicable"
+   - "benign" / "gutartig" → "benign"
+   - "kein Sarkom" / "not a sarcoma" → "not_a_sarcoma"
+   - "suspekt" / "Verdacht auf Malignität" → "suspicious_of_malignancy"
+   - "nicht diagnostisch" / "nicht verwertbar" / "inadequate" → "non_diagnostic"
+   - "nicht zutreffend" / "not applicable" → "not_applicable"
+   - "intermediär" / "intermediate" → "intermediate"
+   - Wenn kein klarer Wert erkennbar und kein sinnvoller Text vorhanden → null
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
 
 3. **Ränder**:
-   - "R0" oder "in sano" → "R0 (complete resection, negative margins)"
-   - "R1" oder "mikroskopisch positiv" → "R1 (microscopic residual tumor)"
-   - "R2" oder "makroskopisch positiv" → "R2 (macroscopic residual tumor)"
+   - Erlaubte Werte für judgment_of_surgical_margin:
+     - "ro_wide_margin"
+     - "r1a_marginal_margin_planned_close_ultimative_positive"
+     - "r1b_marginal_margin_positive_after_tumor_bed_re_exicision"
+     - "r1c_marginal_margin_inadvertent_positive_margin"
+     - "r2_intralesional_margin"
+     - "curettage"
+     - "not_applicable_because_no_sarcoma"
+   - Mapping:
+     - "R0" / "in sano" / "wide margin" → "ro_wide_margin"
+     - "R1a" / "planned close margin" → "r1a_marginal_margin_planned_close_ultimative_positive"
+     - "R1b" / "positive after tumor bed re-excision" → "r1b_marginal_margin_positive_after_tumor_bed_re_exicision"
+     - "R1c" / "inadvertent positive margin" → "r1c_marginal_margin_inadvertent_positive_margin"
+     - "R2" / "intralesional" → "r2_intralesional_margin"
+     - "curettage" → "curettage"
+     - "not applicable / no sarcoma" → "not_applicable_because_no_sarcoma"
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
    - Abstand: "3 mm zum Rand" → closest_distance_to_margin_mm: 3
+   - biological_barrier_to_closest_margin:
+     - Erlaubte Werte: "none", "fascia", "adventitia", "perineurium", "periosteum", "growth_plate", "other", "non_applicable"
+     - Synonyme (DE/EN) auf erlaubte Werte mappen (z.B. "Faszie" -> "fascia", "Wachstumsfuge" -> "growth_plate")
+     - Wenn KEIN passendes Wort im Text steht -> "none"
+     - Wenn Text vorhanden ist, aber kein valides Mapping möglich: biological_barrier_to_closest_margin = null
+       und den Originaltext in biological_barrier_to_closest_margin_comment als raw_text speichern
 
-4. **Molekularpathologie**:
-   - Wenn "IHC durchgeführt" → ihc_performed_status: "Performed"
-   - Wenn "FISH nicht durchgeführt" → fish_performed_status: "Not performed"
-   - Ergebnisse: Kopiere den vollständigen Text in _result Felder
+4. **biopsied_lesion_type**:
+   - Erlaubte Werte (nur diese 6):
+     - "biopsy_of_the_primary_tumor"
+     - "biopsy_of_local_recurrence"
+     - "biopsy_of_metastases"
+     - "resection_of_the_primary_tumor"
+     - "resection_of_local_recurrence"
+     - "resection_of_metastases"
+   - Synonyme entsprechend mappen:
+     - Biopsie Primärtumor -> biopsy_of_the_primary_tumor
+     - Biopsie Lokalrezidiv -> biopsy_of_local_recurrence
+     - Biopsie Metastase(n) -> biopsy_of_metastases
+     - Resektion Primärtumor -> resection_of_the_primary_tumor
+     - Resektion Lokalrezidiv -> resection_of_local_recurrence
+     - Resektion Metastase(n) -> resection_of_metastases
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
 
-5. **Fehlende Werte**: null verwenden
+5. **biopsy_type**:
+   - Erlaubte Werte (nur diese 6):
+     - "fine_needle"
+     - "core_biopsy"
+     - "open_incisional_with_suspicion_of_sarcoma"
+     - "open_incisional_without_suspicion_of_sarcoma"
+     - "excisional_with_suspicion_of_sarcoma"
+     - "excisional_without_supsicion_of_sarcoma_whoops"
+   - Synonyme entsprechend mappen:
+     - Fine needle / FNA -> fine_needle
+     - Core biopsy / Stanzbiopsie -> core_biopsy
+     - Open incisional (mit Sarkomverdacht) -> open_incisional_with_suspicion_of_sarcoma
+     - Open incisional (ohne Sarkomverdacht) -> open_incisional_without_suspicion_of_sarcoma
+     - Excisional (mit Sarkomverdacht) -> excisional_with_suspicion_of_sarcoma
+     - Excisional (ohne Sarkomverdacht / whoops) -> excisional_without_supsicion_of_sarcoma_whoops
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
+
+6. **prior_treatment**:
+   - Erlaubte Werte: "no", "radiotherapy", "chemotherapy", "radiotherapy_and_chemotherapy", "unknown"
+   - Synonyme:
+     - kein/keine/ohne Vorbehandlung -> no
+     - Bestrahlung / Radiotherapie -> radiotherapy
+     - Chemotherapie / Chemo -> chemotherapy
+     - Radio + Chemo zusammen -> radiotherapy_and_chemotherapy
+     - unklar / unknown -> unknown
+   - Wenn keine Information im Bericht vorhanden ist -> unknown
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
+
+7. **eortc_response_grade**:
+   - Erlaubte Werte: "grade_a", "grade_b", "grade_c", "grade_d", "grade_e"
+   - Mapping:
+     - Grade 1 / no therapy effect -> grade_a
+     - Grade 2 / <50% necrosis -> grade_b
+     - Grade 3 / 50-90% necrosis -> grade_c
+     - Grade 4 / >90% necrosis -> grade_d
+     - Grade 5 / complete response / no viable tumor -> grade_e
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
+
+8. **extent_of_necrosis**:
+   - Erlaubte Werte: "less_than_10_percent", "11_to_20_percent", "21_to_30_percent", "31_to_40_percent", "41_to_50_percent", "51_to_60_percent", "61_to_70_percent", "71_to_80_percent", "81_to_90_percent", "more_than_90_percent"
+   - Mapping:
+     - <10% -> less_than_10_percent
+     - 11-20% -> 11_to_20_percent
+     - 21-30% -> 21_to_30_percent
+     - 31-40% -> 31_to_40_percent
+     - 41-50% -> 41_to_50_percent
+     - 51-60% -> 51_to_60_percent
+     - 61-70% -> 61_to_70_percent
+     - 71-80% -> 71_to_80_percent
+     - 81-90% -> 81_to_90_percent
+     - >90% -> more_than_90_percent
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
+
+9. **Molekularpathologie** (_result und _performed_status Felder):
+   - Erlaubte Werte für ihc_result, fish_result, rna_result, dna_result: "positive", "negative", "not_interpretable", "in_progress"
+   - Erlaubte Werte für ihc_performed_status, fish_performed_status, rna_performed_status, dna_performed_status: "yes", "no", "not_yet_but_planned"
+   - Mapping der Status-Felder:
+     - "durchgeführt" / "performed" / "done" -> "yes"
+     - "nicht durchgeführt" / "not performed" / "none" / "n/a" -> "no"
+     - "geplant" / "ausstehend" / "pending" / "not yet" -> "not_yet_but_planned"
+   - Mapping der Ergebnisse:
+     - "positiv" / "detected" / "nachgewiesen" / "amplifiziert" → "positive"
+     - "negativ" / "not detected" / "nicht nachgewiesen" / "wildtyp" → "negative"
+     - "nicht interpretierbar" / "nicht auswertbar" / "inadequate" → "not_interpretable"
+     - "ausstehend" / "pending" / "in Bearbeitung" → "in_progress"
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
+   - Wenn kein sinnvoller Text vorhanden: null
+
+10. **proliferation_index** (Ki-67 / Proliferationsindex):
+   - Erlaubte Werte: "less_than_10_percent", "11_to_20_percent", "21_to_30_percent", "31_to_40_percent", "41_to_50_percent", "51_to_60_percent", "61_to_70_percent", "71_to_80_percent", "81_to_90_percent", "more_than_90_percent", "not_applicable_because_of_therapy_before_biopsy_or_necrosis"
+   - Mapping: Prozentzahl nach dem Doppelpunkt extrahieren und Bereich zuordnen:
+     - Ki-67 <10% → "less_than_10_percent"
+     - Ki-67 11-20% → "11_to_20_percent"
+     - Ki-67 21-30% → "21_to_30_percent"
+     - Ki-67 31-40% → "31_to_40_percent"
+     - Ki-67 41-50% → "41_to_50_percent"
+     - Ki-67 51-60% → "51_to_60_percent"
+     - Ki-67 61-70% → "61_to_70_percent"
+     - Ki-67 71-80% → "71_to_80_percent"
+     - Ki-67 81-90% → "81_to_90_percent"
+     - Ki-67 >90% → "more_than_90_percent"
+     - Neoadjuvante Therapie / Nekrose → "not_applicable_because_of_therapy_before_biopsy_or_necrosis"
+   - Wenn kein klarer Wert erkennbar und kein sinnvoller Text vorhanden → null
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
+
+11. **mitoses_per_10hpf**:
+   - Erlaubte Werte: "less_than_10_mitoses_per_10hpf", "10_to_19_mitoses_per_10hpf", "more_than_19_mitoses_per_10hpf", "not_applicable_in_cases_with_neoadjuvant_therapy_necrosis"
+   - Mapping:
+     - <10 Mitosen/10 HPF -> less_than_10_mitoses_per_10hpf
+     - 10-19 Mitosen/10 HPF -> 10_to_19_mitoses_per_10hpf
+     - >19 Mitosen/10 HPF -> more_than_19_mitoses_per_10hpf
+     - Neoadjuvante Therapie/Nekrose -> not_applicable_in_cases_with_neoadjuvant_therapy_necrosis
+   - Wenn Text vorhanden ist, aber kein valides Mapping möglich: originalen Text unverändert übernehmen
+
+12. **Fehlende Werte**:
+   - Standard: null verwenden
+   - Ausnahme prior_treatment: unknown
+   - Ausnahme biological_barrier_to_closest_margin: none
 
 BEISPIELE:
-- "Ki-67: 40%" → proliferation_index: "Ki-67: 40%"
-- "15 Mitosen/10 HPF" → mitoses_per_10hpf: "15/10 HPF"
-- "Nekrose <10%" → extent_of_necrosis: "<10%"
+- "Ki-67: 40%" → proliferation_index: "31_to_40_percent"
+- "Ki-67: 5%" → proliferation_index: "less_than_10_percent"
+- "MIB1: 65%" → proliferation_index: "61_to_70_percent"
+- "5 Mitosen/10 HPF" → mitoses_per_10hpf: "less_than_10_mitoses_per_10hpf"
+- "15 Mitosen/10 HPF" → mitoses_per_10hpf: "10_to_19_mitoses_per_10hpf"
+- "25 Mitosen/10 HPF" → mitoses_per_10hpf: "more_than_19_mitoses_per_10hpf"
+- Neoadjuvante Therapie / Nekrose → mitoses_per_10hpf: "not_applicable_in_cases_with_neoadjuvant_therapy_necrosis"
+- "Nekrose <10%" → extent_of_necrosis: "less_than_10_percent"
 """
 
     prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nPathologie-Berichtstext:\n{text}"

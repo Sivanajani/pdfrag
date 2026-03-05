@@ -4,3 +4,4 @@ python-multipart
 pydantic
 pypdf
 google-generativeai>=0.8.0
+PyYAML
