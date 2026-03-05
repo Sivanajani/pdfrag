@@ -228,7 +228,7 @@ export default function ExtractedDataPanel({
 
       {/* --- RADIOLOGY --- */}
       {radiologyEvents && radiologyEvents.length > 0 && (() => {
-        const headers = ["patient_id", "imported", "exam_date", "exam_type", "exam_type_comment", "imaging_timing", "imaging_type", "location_of_lesion", "largest_lesion_size_in_mm", "medium_lesion_size_in_mm", "smallest_lesion_size_in_mm", "recist_response", "choi_response", "irecist_response", "pet_response", "local_disease_status", "local_disease_measurable", "local_disease_report_largest_diameter", "local_disease_qualitative_mri_response", "local_disease_radiologist_confidence", "local_disease_pet_metabolic_response", "metastasis_presence", "metastasis", "anatomic_location_of_metastasis", "metastasis_location_lung_count", "metastasis_location_pleura_count", "metastasis_location_bone_count", "metastasis_location_liver_count", "metastasis_location_soft_tissue_count", "metastasis_location_lymph_node_count", "metastasis_location_brain_count", "metastasis_location_other_count", "metastasis_target_lesion_count", "metastasis_longest_diameter_mm", "metastasis_indeterminate_category", "radiology_report", "report_date"];
+        const headers = ["patient_id", "exam_date", "exam_type", "exam_type_comment", "imaging_timing", "imaging_type", "location_of_lesion", "largest_lesion_size_in_mm", "medium_lesion_size_in_mm", "smallest_lesion_size_in_mm", "recist_response", "choi_response", "irecist_response", "pet_response", "local_disease_status", "local_disease_measurable", "local_disease_report_largest_diameter", "local_disease_qualitative_mri_response", "local_disease_radiologist_confidence", "local_disease_pet_metabolic_response", "metastasis_presence", "metastasis", "anatomic_location_of_metastasis", "metastasis_location_lung_count", "metastasis_location_pleura_count", "metastasis_location_bone_count", "metastasis_location_liver_count", "metastasis_location_soft_tissue_count", "metastasis_location_lymph_node_count", "metastasis_location_brain_count", "metastasis_location_other_count", "metastasis_target_lesion_count", "metastasis_longest_diameter_mm", "metastasis_indeterminate_category", "radiology_report", "report_date"];
         return (
           <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 3 }}>
             <Typography variant="subtitle1" gutterBottom>Radiology</Typography>
@@ -237,7 +237,6 @@ export default function ExtractedDataPanel({
                 <TableHead>
                   <TableRow>
                     <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'action.hover' }}>Imported</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Exam Date *</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Exam Type</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Exam Type Comment</TableCell>
@@ -279,7 +278,6 @@ export default function ExtractedDataPanel({
                   {radiologyEvents.map((e, idx) => (
                     <TableRow key={idx}>
                       <EditableCell {...ec("radiology", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
-                      <EditableCell {...ec("radiology", idx, "imported", e.imported == null ? "" : String(e.imported))} />
                       <EditableCell {...ec("radiology", idx, "exam_date", String(e.exam_date ?? ""), { fontWeight: 'bold' })} />
                       <EditableCell {...ec("radiology", idx, "exam_type", String(e.exam_type ?? ""))} />
                       <EditableCell {...ec("radiology", idx, "exam_type_comment", String(e.exam_type_comment ?? ""))} />
@@ -524,7 +522,42 @@ export default function ExtractedDataPanel({
 
       {/* --- SARCOMA BOARD --- */}
       {sarcomaBoardEvents && sarcomaBoardEvents.length > 0 && (() => {
-        const headers = ["patient_id", "presentation_date", "reason_for_presentation", "current_ecog", "status_before_follow_up", "status_after_follow_up", "treatment_before_follow_up", "decision_surgery", "decision_surgery_comment", "decision_radio_therapy", "decision_radio_therapy_comment", "decision_systemic_therapy", "decision_systemic_therapy_comment", "decision_follow_up", "decision_follow_up_comment", "decision_diagnostics", "decision_diagnostics_comment", "decision_palliative_care", "decision_palliative_care_comment", "question", "proposed_procedure", "summary", "summary_radiology", "summary_pathology"];
+        const headers = [
+          "patient_id",
+          "presentation_date",
+          "reason_for_presentation",
+          "status_before_follow_up",
+          "unplanned_excision_date",
+          "status_after_follow_up",
+          "status_after_follow_up_comment",
+          "treatment_before_follow_up",
+          "follow_up_reason",
+          "last_execution",
+          "question",
+          "proposed_procedure",
+          "current_ecog",
+          "decision_surgery",
+          "decision_surgery_comment",
+          "decision_radio_therapy",
+          "decision_radio_therapy_comment",
+          "decision_systemic_surgery",
+          "decision_systemic_surgery_comment",
+          "decision_follow_up",
+          "decision_follow_up_comment",
+          "decision_diagnostics",
+          "decision_diagnostics_comment",
+          "decision_palliative_care",
+          "decision_palliative_care_comment",
+          "summary",
+          "further_details",
+          "fast_track",
+          "whoops_surgery_institution_id",
+          "patient_history",
+          "summary_patient_information",
+          "summary_radiology",
+          "summary_pathology",
+          "presenting_physician_id",
+        ];
         return (
           <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 3 }}>
             <Typography variant="subtitle1" gutterBottom>Sarcoma Board</Typography>
@@ -535,10 +568,16 @@ export default function ExtractedDataPanel({
                     <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Presentation Date</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Reason</TableCell>
-                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>ECOG</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Status Before</TableCell>
+                    <TableCell sx={{ bgcolor: 'warning.light' }}>Unplanned Excision Date</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Status After</TableCell>
+                    <TableCell sx={{ bgcolor: 'warning.light' }}>Status After Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Treatment Before</TableCell>
+                    <TableCell sx={{ bgcolor: 'warning.light' }}>Follow-up Reason</TableCell>
+                    <TableCell sx={{ bgcolor: 'warning.light' }}>Last Execution</TableCell>
+                    <TableCell sx={{ bgcolor: 'error.light' }}>Question</TableCell>
+                    <TableCell sx={{ bgcolor: 'error.light' }}>Proposed Procedure</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>ECOG</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Surgery</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Surgery Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Radio Therapy</TableCell>
@@ -551,11 +590,15 @@ export default function ExtractedDataPanel({
                     <TableCell sx={{ bgcolor: 'info.light' }}>Diagnostics Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>Palliative Care</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>Palliative Comment</TableCell>
-                    <TableCell sx={{ bgcolor: 'error.light' }}>Question</TableCell>
-                    <TableCell sx={{ bgcolor: 'error.light' }}>Proposed Procedure</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Summary</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Further Details</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Fast Track</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Whoops Institution ID</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Patient History</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Summary Patient Information</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Summary Radiology</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Summary Pathology</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Presenting Physician ID</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -564,27 +607,37 @@ export default function ExtractedDataPanel({
                       <EditableCell {...ec("sarcomaBoard", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
                       <EditableCell {...ec("sarcomaBoard", idx, "presentation_date", String(e.presentation_date ?? ""), { fontWeight: 'bold' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "reason_for_presentation", String(e.reason_for_presentation ?? ""))} />
-                      <EditableCell {...ec("sarcomaBoard", idx, "current_ecog", String(e.current_ecog ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "status_before_follow_up", String(e.status_before_follow_up ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "unplanned_excision_date", String(e.unplanned_excision_date ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "status_after_follow_up", String(e.status_after_follow_up ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "status_after_follow_up_comment", String(e.status_after_follow_up_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "treatment_before_follow_up", String(e.treatment_before_follow_up ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "follow_up_reason", String(e.follow_up_reason ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "last_execution", String(e.last_execution ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "question", String(e.question ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "proposed_procedure", String(e.proposed_procedure ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "current_ecog", String(e.current_ecog ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_surgery", String(e.decision_surgery ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_surgery_comment", String(e.decision_surgery_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_radio_therapy", String(e.decision_radio_therapy ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_radio_therapy_comment", String(e.decision_radio_therapy_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
-                      <EditableCell {...ec("sarcomaBoard", idx, "decision_systemic_therapy", String(e.decision_systemic_therapy ?? ""))} />
-                      <EditableCell {...ec("sarcomaBoard", idx, "decision_systemic_therapy_comment", String(e.decision_systemic_therapy_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_systemic_surgery", String(e.decision_systemic_surgery ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "decision_systemic_surgery_comment", String(e.decision_systemic_surgery_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_follow_up", String(e.decision_follow_up ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_follow_up_comment", String(e.decision_follow_up_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_diagnostics", String(e.decision_diagnostics ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_diagnostics_comment", String(e.decision_diagnostics_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_palliative_care", String(e.decision_palliative_care ?? ""))} />
                       <EditableCell {...ec("sarcomaBoard", idx, "decision_palliative_care_comment", String(e.decision_palliative_care_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
-                      <EditableCell {...ec("sarcomaBoard", idx, "question", String(e.question ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
-                      <EditableCell {...ec("sarcomaBoard", idx, "proposed_procedure", String(e.proposed_procedure ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "summary", String(e.summary ?? ""), { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "further_details", String(e.further_details ?? ""), { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "fast_track", e.fast_track == null ? "" : String(e.fast_track))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "whoops_surgery_institution_id", String(e.whoops_surgery_institution_id ?? ""))} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "patient_history", String(e.patient_history ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "summary_patient_information", String(e.summary_patient_information ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "summary_radiology", String(e.summary_radiology ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("sarcomaBoard", idx, "summary_pathology", String(e.summary_pathology ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
+                      <EditableCell {...ec("sarcomaBoard", idx, "presenting_physician_id", String(e.presenting_physician_id ?? ""))} />
                     </TableRow>
                   ))}
                 </TableBody>

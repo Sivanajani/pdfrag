@@ -1079,15 +1079,15 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein SarcomaBoardEvent:
     "presentation_date": "YYYY-MM-DD",
 
     // Grund und Status
-    "reason_for_presentation": "Primary diagnosis" | "Follow-up" | "Second opinion" | "Recurrence" | "Metastasis" | "Treatment decision" | "Complication" | "Other" | null,
-    "status_before_follow_up": "Pre-treatment" | "During treatment" | "Post-treatment" | "Recurrence" | "Stable disease" | "Progressive disease" | "Other" | null,
-    "status_after_follow_up": "Complete remission" | "Partial remission" | "Stable disease" | "Progressive disease" | "Recurrence" | "Deceased" | "Other" | null,
+    "reason_for_presentation": "first_time" | "unplanned_excision" | "follow_up" | null,
+    "status_before_follow_up": "no_previous_therapy" | "locally_advanced_tumor" | "exophytic_growth" | null,
+    "status_after_follow_up": "partial_therapy_for_primary_tumor" | "completed_therapy_for_primary_tumor" | "other" | null,
     "status_after_follow_up_comment": string | null,
 
     // Behandlungsverlauf
-    "treatment_before_follow_up": "None" | "Surgery" | "Radiotherapy" | "Chemotherapy" | "Combined treatment" | "Other" | null,
-    "follow_up_reason": "Routine surveillance" | "Symptom evaluation" | "Treatment response assessment" | "Pre-treatment evaluation" | "Post-treatment evaluation" | "Other" | null,
-    "last_execution": "Surgery" | "Radiotherapy" | "Chemotherapy" | "Systemic therapy" | "Biopsy" | "Imaging" | "None" | "Other" | null,
+    "treatment_before_follow_up": "none" | "surgery" | "radiotherapy" | "systemic_therapy" | "surgery_radiotherapy" | "surgery_chemotherapy" | "radiotherapy_chemotherapy" | "surgery_chemotherapy_radiotherapy" | null,
+    "follow_up_reason": "in_context_of_primary_treatment" | "first_local_recurrence" | "in_context_of_treatment_for_first_local_recurrence" | "first_systemic_recurrence" | "in_context_of_first_systemic_recurrence" | "second_or_more_local_systemic_recurrences" | "important_follow_up_information_of_general_interest" | null,
+    "last_execution": "patient_related_factors" | "physician_healthcare_provider_related_factors" | "logistical_administrative_factors" | "no_re_presentation_at_sarcomaboard" | "systemic_institutional_factors" | "disease_course" | "research_trial_related_factors" | "no_categorization_possible" | null,
     "unplanned_excision_date": "YYYY-MM-DD" | null,
 
     // Fragestellung
@@ -1098,22 +1098,22 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein SarcomaBoardEvent:
     "current_ecog": number | null,  // 0-5
 
     // Board-Entscheidungen (jeweils mit Kommentar)
-    "decision_surgery": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_surgery": "yes" | "yes_interventional_radiology" | "no" | "undecided" | null,
     "decision_surgery_comment": string | null,
 
-    "decision_radio_therapy": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_radio_therapy": "yes" | "yes_interventional_radiology" | "no" | "undecided" | null,
     "decision_radio_therapy_comment": string | null,
 
-    "decision_systemic_therapy": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
-    "decision_systemic_therapy_comment": string | null,
+    "decision_systemic_surgery": "yes" | "yes_interventional_radiology" | "no" | "undecided" | null,  // systemische Therapie-Entscheidung
+    "decision_systemic_surgery_comment": string | null,
 
-    "decision_follow_up": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_follow_up": "yes" | "yes_interventional_radiology" | "no" | "undecided" | null,
     "decision_follow_up_comment": string | null,
 
-    "decision_diagnostics": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_diagnostics": "yes" | "yes_interventional_radiology" | "no" | "undecided" | null,
     "decision_diagnostics_comment": string | null,
 
-    "decision_palliative_care": "Yes" | "No" | "Maybe/Unclear" | "Not applicable" | null,
+    "decision_palliative_care": "yes" | "yes_interventional_radiology" | "no" | "undecided" | null,
     "decision_palliative_care_comment": string | null,
 
     // Zusammenfassungen
@@ -1137,10 +1137,20 @@ WICHTIGE REGELN:
    - "Board vom 15.01.2024" → "2024-01-15"
 
 2. **Board-Entscheidungen**:
-   - "Chirurgie empfohlen" → decision_surgery: "Yes"
-   - "Radiotherapie nicht indiziert" → decision_radio_therapy: "No"
-   - "Chemotherapie wird diskutiert" → decision_systemic_therapy: "Maybe/Unclear"
+   - "Chirurgie empfohlen" → decision_surgery: "yes"
+   - "Radiotherapie nicht indiziert" → decision_radio_therapy: "no"
+   - "Systemtherapie wird diskutiert" → decision_systemic_surgery: "undecided"
+   - "Interventionelle Radiologie" → decision_surgery: "yes_interventional_radiology"
    - Kommentare: Zusätzliche Details zur Entscheidung
+
+3b. **Präsentationsgrund**:
+   - "Erstvorstellung" → reason_for_presentation: "first_time"
+   - "Whoops-OP" → reason_for_presentation: "unplanned_excision"
+   - "Verlaufskontrolle" → reason_for_presentation: "follow_up"
+
+3c. **Behandlungshistorie**:
+   - "nach Chirurgie und Radiotherapie" → treatment_before_follow_up: "surgery_radiotherapy"
+   - "nach Chemotherapie" → treatment_before_follow_up: "systemic_therapy"
 
 3. **ECOG**:
    - "ECOG 0" → current_ecog: 0
@@ -1155,9 +1165,13 @@ WICHTIGE REGELN:
 
 BEISPIELE:
 - "Empfehlung: Weite Exzision mit anschließender Radiotherapie"
-  → decision_surgery: "Yes", decision_radio_therapy: "Yes"
+  → decision_surgery: "yes", decision_radio_therapy: "yes"
 - "Follow-up in 3 Monaten"
-  → decision_follow_up: "Yes", decision_follow_up_comment: "in 3 Monaten"
+  → decision_follow_up: "yes", decision_follow_up_comment: "in 3 Monaten"
+- "Erstpräsentation, keine Vorbehandlung"
+  → reason_for_presentation: "first_time", treatment_before_follow_up: "none"
+- "Verlauf nach OP und Radiotherapie, Lokalrezidiv"
+  → reason_for_presentation: "follow_up", treatment_before_follow_up: "surgery_radiotherapy", follow_up_reason: "first_local_recurrence"
 """
 
     prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nTumorboard-Protokoll:\n{text}"

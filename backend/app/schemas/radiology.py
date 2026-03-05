@@ -133,10 +133,6 @@ class RadiologyEvent(BaseModel):
 
     # IDs (in DB nicht nullable, aber hier optional für LLM-Extraktion)
     patient_id: Optional[int] = Field(default=None, ge=0)
-    imported: Optional[bool] = Field(
-        default=None,
-        description="Technisches Import-Flag (nicht aus Freitext ableitbar)"
-    )
 
     # Datum (optional — LLM liefert nicht immer ein Datum)
     exam_date: Optional[date] = Field(default=None, description="Untersuchungsdatum")

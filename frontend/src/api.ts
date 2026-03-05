@@ -65,7 +65,6 @@ export async function llmExtractByDocId(docId: string): Promise<LlmExtractRespon
 export type RadiologyEvent = {
   // IDs
   patient_id?: number | null
-  imported?: boolean | null
 
   // Datum (optional)
   exam_date?: string | null
@@ -417,7 +416,6 @@ export async function llmExtractSurgeryByDocId(docId: string): Promise<SurgeryEx
 // ============================================================================
 
 export type SarcomaBoardEvent = {
-  institution_id?: number | null
   patient_id?: number | null
 
   // Datum (optional)
@@ -449,8 +447,8 @@ export type SarcomaBoardEvent = {
   decision_radio_therapy?: string | null
   decision_radio_therapy_comment?: string | null
 
-  decision_systemic_therapy?: string | null
-  decision_systemic_therapy_comment?: string | null
+  decision_systemic_surgery?: string | null
+  decision_systemic_surgery_comment?: string | null
 
   decision_follow_up?: string | null
   decision_follow_up_comment?: string | null
