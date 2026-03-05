@@ -1,0 +1,11 @@
+- intensity_modulated_radiotherapy_imrt
+- lattice_lrt
+- volumetric_arc_vmat
+- conventional_3d
+- stereotactic_radiotherapy
+- proton_therapy
+- intraoperative_linac
+- intraoperative_brachytherapy
+- brachytherapy
+- sequential_boost
+- simultaneous_integrated_boost

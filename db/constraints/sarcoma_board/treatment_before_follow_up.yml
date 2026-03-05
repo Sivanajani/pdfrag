@@ -1,0 +1,8 @@
+- none
+- surgery
+- radiotherapy
+- systemic_therapy
+- surgery_radiotherapy
+- surgery_chemotherapy
+- radiotherapy_chemotherapy
+- surgery_chemotherapy_radiotherapy

@@ -1,0 +1,93 @@
+- label: "label_cytotoxic_drugs"
+  children:
+    - "actinomycin_d"
+    - "carboplatin"
+    - "cisplatin"
+    - "cyclophosphamid"
+    - "docetaxel"
+    - "doxorubicin"
+    - "liposomal_doxorubicin"
+    - "dtic_dacarbazine"
+    - "eribulin"
+    - "etoposid"
+    - "gemcitabine"
+    - "ifosfamie"
+    - "irinotecan"
+    - "methotrexate"
+    - "navelbine"
+    - "paclitaxel"
+    - "temozolomid"
+    - "trabectedin"
+    - "trofosfamid"
+    - "vincristin"
+
+- label: "label_immunotherapy_checkpoint_inhibitors"
+  children:
+    - "atezolizumab_pd_l1"
+    - "avelumab_pd_l1"
+    - "cemiplimab_pd_l1"
+    - "durvalumab_pd_l1"
+    - "nivolumab_pd_1"
+    - "pembrolizumab_pd_1"
+
+- label: "label_protein_kinase_inhibitors"
+  children:
+    - "alectinib_alk"
+    - "avapritinib_ayvakit"
+    - "axitinib_vegfr"
+    - "binimetinib_mek"
+    - "cabozantinib_ros1_met"
+    - "cediranib_vegfr"
+    - "ceritinib_alk_ros1"
+    - "crizotinib_met_ros1"
+    - "cobimetinib_mek"
+    - "dasatinib_src_bcr_abl"
+    - "encorafenib_braf"
+    - "erdafitinib_fgfr"
+    - "erlotinib_egfr"
+    - "imatinib_ckit_pdgfr_a_bcr_abl"
+    - "infigratinib_fgfr"
+    - "larotrectinib_ntrk"
+    - "lenvatinib_fgfr_pdgfr_a_kit_ret"
+    - "pazopanib_vegfr_pdgfr_kit"
+    - "regorafenib"
+    - "sorafenib_raf_c_kit_flt_vegfr_pdgfr"
+    - "sunitinib_pdgfr_vegfr_kit_flt3_csf_1r_ret"
+    - "tivantinib_mek"
+    - "vemurafenib_braf"
+
+- label: "label_mtor_inhibitors"
+  children:
+    - "everolimus"
+    - "nab_sirolimus"
+
+- label: "label_parp_inhibitors"
+  children:
+    - "olapatib"
+
+- label: "label_vegf_inhibitors"
+  children:
+    - "bevacizumab"
+    - "ramucirumab"
+
+- label: "label_rank_lingad_antibody"
+  children:
+    - "denosumab"
+
+- label: "label_ezh2_inhibitors"
+  children:
+    - "tazemetostat"
+
+- label: "label_pi3k_inhibitors"
+  children:
+    - "alpelisib"
+
+- label: "label_mdm2_inhibitors"
+  children:
+    - "nutlins"
+
+- label: "label_cdk4_6_inhibitors"
+  children:
+    - "palbociblib"
+    - "ribociclib"
+    - "abemaciclib"

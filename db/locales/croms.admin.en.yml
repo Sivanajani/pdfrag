@@ -1,0 +1,54 @@
+en:
+  croms:
+    admin:
+      layout:
+        header:
+          navigation:
+            institutions: "Institutions"
+            users: "Users"
+            patient_registrations: "Patient Registrations"
+      not_authorized: "You are not authorized to access this page"
+      institutions:
+        title: "Institutions"
+        users: "Users"
+        table:
+          name: "Name"
+          no_records: "No institutions found"
+        create:
+          success: "Institution created"
+          error: "Institution could not be created"
+        update:
+          success: "Institution updated"
+          error: "Institution could not be updated"
+      users:
+        title: "Users"
+        institutions: "Institutions"
+        table:
+          full_name: "Full name"
+          institutions: "Institutions"
+          function: "Function"
+          admin: "Admin"
+          no_records: "No users found"
+          add: "Add user"
+          total_records: "Total of %{count} user(s)"
+        create:
+          success: "User created"
+          error: "User could not be created"
+        update:
+          success: "User updated"
+          error: "User could not be updated"
+      patient_registrations:
+        title: "Patient Registrations"
+        table:
+          pid: "PID"
+          created_at: "Created at"
+          no_records: "No pending patient registrations"
+          total_records: "Total of %{count} patient registration(s)"
+        edit:
+          patient_exists_already: "There is already a patient with the same reference code! Approving this registration will override the existing patient."
+        update:
+          success: "Patient registration updated"
+        approve:
+          success: "Patient was successfully created"
+        destroy:
+          success: "Patient registration was successfully deleted"

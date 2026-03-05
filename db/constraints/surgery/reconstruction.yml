@@ -1,0 +1,102 @@
+- "not_applicable"
+- "skin_mesh_graft"
+
+- label: "label_pedicled_tissue_transfer"
+  children:
+    - label: "label_muscle_flaps"
+      children:
+        - "rectus_abdominis"
+        - "rectus_abdominis_with_skin"
+        - "gastrocnemius"
+        - "gastrocnemius_with_skin"
+        - "latissimus_dorsi"
+        - "latissimus_dorsi_with_skin"
+        - "gracilis"
+        - "gracilis_with_skin"
+        - "sartorius"
+        - "sartorius_with_skin"
+        - "soleus"
+        - "soleus_with_skin"
+        - "serratus"
+        - "serratus_with_skin"
+        - "other_muscle_flap"
+    - label: "label_perforator_flap_pedicled"
+      children:
+        - "alt_pedicled"
+        - "other_perforator_flap_pedicled"
+
+- label: "label_free_tissue_transfer"
+  children:
+    - "latissimus_dorsi_free"
+    - "gracilis_free"
+    - "other_free_tissue_transfer"
+    - label: "label_perforator_flap_free"
+      children:
+        - "alt_free"
+        - "other_perforator_flap_free"
+
+- label: "label_tendon_ligament"
+  children:
+    - "autologous_tendon_transfer"
+    - "allograft_tendon_reconstruction"
+    - "local_tendon_reconstruction"
+
+- label: "label_bone"
+  children:
+    - "cementation"
+    - "orif"
+    - "pedicle_screws_rods_cages"
+    - "artificial_bone_substitute"
+    - "autograft"
+    - "vascularised_fibula_autograft"
+    - "vascularised_epiphyseal_transfer"
+    - "non_vascularised_fibula_autograft"
+    - "pasteurised_autograft"
+    - "allograft_chips"
+    - "bulk_allograft"
+    - "conventional_prosthesis"
+    - "modular_tumor_prosthesis"
+    - "custom_made_prosthesis"
+    - "growing_prosthesis"
+    - "arthrodesis"
+    - "distraction_osteogenesis"
+    - "cement_spacer_pseudoarthrosis"
+    - "canadell_distraction_epiphyseolysis"
+    - "other_bone_reconstruction"
+    - "pseudarthrosis_intentional"
+    - "goretex_mesh_trevira"
+
+- label: "label_vessel"
+  children:
+    - "artery_complete"
+    - "artery_patch"
+    - "vein_complete"
+    - "vein_patch"
+    - "lympho_venous"
+    - "other_vessel_reconstruction"
+
+- label: "label_nerve"
+  children:
+    - "nerve_reconstruction"
+    - "neurotisation_local_transfer"
+    - "neurotisation_local_transfer_autologous"
+    - "neurotisation_local_transfer_allograft"
+
+- "chest_wall_reconstruction"
+
+- label: "label_abdomen"
+  children:
+    - "abdominal_wall_reconstruction"
+    - label: "label_intraabdominal_reconstruction"
+      children:
+        - "colon_anastomosis"
+        - "stoma"
+        - "bladder"
+        - "ureter"
+        - "other_intraabdominal_reconstruction"
+
+- label: "label_sequelae_of_primary_treatment"
+  children:
+    - "cement_spacer_implantation"
+    - "partial_implantation_replacement"
+    - "complete_prosthesis_implantation_replacement"

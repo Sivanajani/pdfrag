@@ -1,0 +1,379 @@
+- not_determined
+
+- label: "label_bone"
+  children:
+    - label: "label_bone_face_head_neck"
+      children:
+        - b_fhn_fr
+        - b_fhn_pr
+        - b_fhn_oc
+        - b_fhn_tm
+        - b_fhn_sp
+        - b_fhn_et
+        - b_fhn_mx
+        - b_fhn_md
+        - b_fhn_zg
+        - b_fhn_ns
+        - b_fhn_lc
+        - b_fhn_pl
+        - b_fhn_vm
+        - b_fhn_orb
+        - b_fhn_c1
+        - b_fhn_c2
+        - b_fhn_tmj
+    - label: "label_bone_upper_extremity"
+      children:
+        - label: "label_bone_clavicle"
+          children:
+            - b_ue_cl_prox_intra
+            - b_ue_cl_prox_extra
+            - b_ue_cl_dia
+            - b_ue_cl_dist_intra
+            - b_ue_cl_dist_extra
+        - label: "label_bone_scapula"
+          children:
+            - b_ue_ac
+            - b_ue_sc_sp
+            - b_ue_sc_gl_intra
+            - b_ue_sc_gl_extra
+            - b_ue_sc_b
+            - b_ue_sc_intra
+            - b_ue_sc_extra
+        - label: "label_bone_humerus"
+          children:
+            - b_ue_hu_prox_intra
+            - b_ue_hu_prox_extra
+            - b_ue_hu_dia
+            - b_ue_hu_dist_intra
+            - b_ue_hu_dist_extra
+        - label: "label_bone_elbow"
+          children:
+            - b_ue_elb_intra
+            - b_ue_elb_extra
+        - label: "label_bone_radius"
+          children:
+            - b_ue_ra_prox_intra
+            - b_ue_ra_prox_extra
+            - b_ue_ra_dia
+            - b_ue_ra_dist_intra
+            - b_ue_ra_dist_extra
+        - label: "label_bone_ulna"
+          children:
+            - b_ue_ul_prox_intra
+            - b_ue_ul_prox_extra
+            - b_ue_ul_dia
+            - b_ue_ul_dist_intra
+            - b_ue_ul_dist_extra
+        - label: "label_bone_wrist"
+          children:
+            - b_ue_wrj_intra
+            - b_ue_wir_extra
+        - label: "label_bone_hand"
+          children:
+            - b_ue_cp
+            - b_ue_mc
+            - b_ue_ph
+    - label: "label_bone_spine"
+      children:
+        - b_sp_cv
+        - b_sp_tv
+        - b_sp_lv
+        - b_tr_rb
+        - b_tr_st
+    - label: "label_bone_pelvis"
+      children:
+        - b_pv_il
+        - b_pv_is
+        - b_pv_pb
+        - b_pv_sc
+        - b_pv_cx
+        - b_pv_sij
+        - b_pv_hip_extra
+        - b_pv_hip_intra
+    - label: "label_bone_lower_extremity"
+      children:
+        - label: "label_bone_femur"
+          children:
+            - b_le_fm_prox_intra
+            - b_le_fm_prox_extra
+            - b_le_fm_dia
+            - b_le_fm_dist_intra
+            - b_le_fm_dist_extra
+        - label: "label_bone_patella"
+          children:
+            - b_le_pt_intra
+            - b_le_pt_extra
+        - label: "label_bone_tibia"
+          children:
+            - b_le_tb_prox_intra
+            - b_le_tb_prox_extra
+            - b_le_tb_dia
+            - b_le_tb_dist_intra
+            - b_le_tb_dist_extra
+        - label: "label_bone_fibula"
+          children:
+            - b_le_fb_prox_intra
+            - b_le_fb_prox_extra
+            - b_le_fb_dia
+            - b_le_fb_dist_intra
+            - b_le_fb_dist_extra
+        - label: "label_bone_foot"
+          children:
+            - b_le_anj_intra
+            - b_le_anj_extra
+            - b_le_tl
+            - b_le_cl
+            - b_le_stj
+            - b_le_nv
+            - b_le_cb
+            - b_le_cnm
+            - b_le_cni
+            - b_le_cnl
+            - b_le_mt
+            - b_le_ph
+            - b_le_mfj
+
+- label: "label_superficial_soft_tissues"
+  children:
+    - label: "label_superficial_face_head_neck"
+      children:
+        - s_fhn_fc
+        - s_fhn_hd
+        - s_fhn_na
+        - s_fhn_np
+    - label: "label_superficial_upper_extremity"
+      children:
+        - label: "label_superficial_shoulder"
+          children:
+            - s_ue_cl_med
+            - s_ue_cl_lat
+            - s_ue_sc_sub
+            - s_ue_sc_sca
+            - s_ue_sc_inf
+            - s_ue_sc_del
+            - s_ue_sc_ax
+        - label: "label_superficial_upper_arm"
+          children:
+            - s_ue_ua_ant
+            - s_ue_ua_post
+            - s_ue_ua_med
+            - s_ue_ua_lat
+        - label: "label_superficial_elbow"
+          children:
+            - s_ue_elb_ant
+            - s_ue_elb_post
+            - s_ue_elb_med
+            - s_ue_elb_lat
+        - label: "label_superficial_forearm"
+          children:
+            - s_ue_fa_ant
+            - s_ue_fa_post
+            - s_ue_fa_med
+            - s_ue_fa_lat
+        - label: "label_superficial_hand"
+          children:
+            - s_ue_hnd_dor
+            - s_ue_hnd_pal
+            - s_ue_hnd_dig
+    - label: "label_superficial_trunk"
+      children:
+        - s_tr_tho
+        - s_tr_tho_lat
+        - s_tr_tho_post
+        - s_tr_lum
+        - s_tr_sac
+        - s_tr_an
+    - label: "label_superficial_abdomen"
+      children:
+        - s_ab_hyp
+        - s_ab_umb
+        - s_ab_lat
+    - label: "label_superficial_chest"
+      children:
+        - s_ch_prs
+        - s_ch_pec
+    - label: "label_superficial_pelvis"
+      children:
+        - s_pv_glu
+        - s_pv_pub
+        - s_pv_ugp
+        - s_pv_ing
+    - label: "label_superficial_lower_extremity"
+      children:
+        - label: "label_superficial_thigh"
+          children:
+            - s_le_th_a_prox
+            - s_le_th_a_diaph
+            - s_le_th_a_dist
+            - s_le_th_p_prox
+            - s_le_th_p_diaph
+            - s_le_th_p_dist
+            - s_le_th_m_prox
+            - s_le_th_m_diaph
+            - s_le_th_m_dist
+            - s_le_th_l_prox
+            - s_le_th_l_diaph
+            - s_le_th_l_dist
+        - label: "label_superficial_knee"
+          children:
+            - s_le_kn_ant
+            - s_le_kn_post
+            - s_le_kn_med
+            - s_le_kn_lat
+        - label: "label_superficial_lower_leg"
+          children:
+            - s_le_ll_ant
+            - s_le_ll_post
+            - s_le_ll_med
+            - s_le_ll_lat
+        - label: "label_superficial_foot"
+          children:
+            - s_le_ft_cal
+            - s_le_ft_dor
+            - s_le_ft_pla
+            - s_le_ft_dig
+
+- label: "label_deep_soft_tissues"
+  children:
+    - label: "label_deep_face_head_neck"
+      children:
+        - d_fhn_fac
+        - d_fhn_hed
+        - d_fhn_na_ant
+        - d_fhn_na_post
+    - label: "label_deep_upper_extremity"
+      children:
+        - label: "label_deep_shoulder"
+          children:
+            - d_ue_clv
+            - d_ue_bpx
+            - d_ue_sc_del
+            - d_ue_sc_sup
+            - d_ue_sc_dor
+            - d_ue_sc_inf
+            - d_ue_sc_axl
+            - d_ue_sc_axm
+            - d_ue_shj_intra
+            - d_ue_shj_extra
+        - label: "label_deep_upper_arm"
+          children:
+            - d_ue_ua_ant_prox
+            - d_ue_ua_ant_diaph
+            - d_ue_ua_ant_dist
+            - d_ue_ua_post_prox
+            - d_ue_ua_post_diaph
+            - d_ue_ua_post_dist
+        - label: "label_deep_elbow"
+          children:
+            - d_ue_elb_intra
+            - d_ue_elb_extra
+        - label: "label_deep_forearm"
+          children:
+            - d_ue_fa_ant_prox
+            - d_ue_fa_ant_diaph
+            - d_ue_fa_ant_dist
+            - d_ue_fa_post_prox
+            - d_ue_fa_post_diaph
+            - d_ue_fa_post_dist
+        - label: "label_deep_wrist"
+          children:
+            - d_ue_wrj_intra
+            - d_ue_wrj_extra
+        - label: "label_deep_hand"
+          children:
+            - d_ue_hnd_dor
+            - d_ue_hnd_pal
+            - d_ue_hnd_dig
+    - label: "label_deep_chest"
+      children:
+        - d_ch_stn
+        - d_ch_pec
+        - d_ch_lat
+        - d_ch_post
+        - d_ch_lun
+        - d_ch_ple
+        - d_ch_med
+        - d_ch_hrt
+    - label: "label_deep_trunk"
+      children:
+        - d_tr_csp
+        - d_tr_tsp
+        - d_tr_lsp
+        - d_tr_sac
+        - d_tr_rbm
+    - label: "label_deep_abdomen"
+      children:
+        - label: "label_deep_abdominal_wall"
+          children:
+            - d_ab_aw_ant
+            - d_ab_aw_lat
+        - label: "label_deep_intraperitoneal"
+          children:
+            - d_ab_ip_omn
+            - d_ab_ip_mes
+            - d_ab_ip_mesc
+            - d_ab_ip_pelv
+            - d_ab_ip_oth
+        - label: "label_deep_retro_peritoneal"
+          children:
+            - d_ab_rp_per
+            - d_ab_rp_apr
+            - d_ab_rp_ppr
+            - d_ab_rp_para
+            - d_ab_rp_pel
+            - d_ab_rp_oth
+    - label: "label_deep_pelvis"
+      children:
+        - d_pv_glu
+        - d_pv_rei
+        - d_pv_rex
+        - d_pv_pss
+        - d_pv_ing
+        - d_pv_vis_ute
+        - d_pv_vis_vag
+        - d_pv_vis_ova
+        - d_pv_vis_pro
+        - d_pv_vis_bld
+        - d_pv_par
+        - d_pv_hip_intra
+        - d_pv_hip_extra
+        - d_pv_for_ant
+        - d_pv_for_lat
+    - label: "label_deep_lower_extremity"
+      children:
+        - label: "label_deep_thigh"
+          children:
+            - d_le_th_a_prox
+            - d_le_th_a_diaph
+            - d_le_th_a_dist
+            - d_le_th_m_prox
+            - d_le_th_m_diaph
+            - d_le_th_m_dist
+            - d_le_th_p_prox
+            - d_le_th_p_diaph
+            - d_le_th_p_dist
+        - label: "label_deep_knee"
+          children:
+            - d_le_knj_intra
+            - d_le_knj_extra
+            - d_le_popl
+        - label: "label_deep_lower_leg"
+          children:
+            - d_le_ll_a_prox
+            - d_le_ll_a_diaph
+            - d_le_ll_a_dist
+            - d_le_ll_l_prox
+            - d_le_ll_l_diaph
+            - d_le_ll_l_dist
+            - d_le_ll_p_prox
+            - d_le_ll_p_diaph
+            - d_le_ll_p_dist
+        - label: "label_deep_ankle"
+          children:
+            - d_le_anj_intra
+            - d_le_anj_extra
+        - label: "label_deep_foot"
+          children:
+            - d_le_ft_dor
+            - d_le_ft_pla
+            - d_le_ft_dig

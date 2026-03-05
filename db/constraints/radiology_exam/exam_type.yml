@@ -1,0 +1,8 @@
+- conventional_x_ray
+- mri
+- ct_scan
+- ultrasound
+- pet_ct
+- pet_mri
+- scintigraphy
+- other

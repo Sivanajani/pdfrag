@@ -1,0 +1,43 @@
+- not_determined
+
+- label: "label_upper_extremity"
+  children:
+    - resh_010
+    - resh_020
+    - resh_030
+    - resh_040
+    - resh_050
+    - resh_060
+    - resh_070
+    - resh_099
+
+- label: "label_forequarter"
+  children:
+    - resh_080
+    - resh_081
+
+- label: "label_lower_extremity"
+  children:
+    - resh_110
+    - resh_120
+    - resh_130
+    - resh_140
+    - resh_150
+    - resh_160
+    - resh_170
+    - resh_180
+    - resh_199
+
+- label: "label_spine_pelvis"
+  children:
+    - resg_080
+
+- label: "label_external_hemipelvectomy_type_v"
+  children:
+    - ext_ta
+    - ext_ti
+    - ext_ths
+    - ext_ths_diss
+    - ext_hc
+    - ext_bi
+    - ext_visc

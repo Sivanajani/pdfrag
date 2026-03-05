@@ -1,0 +1,10 @@
+- first_surgery_for_this_reason
+- first_surgery_after_whoops
+- pathological_fracture
+- first_revision_surgery
+- second_or_more_revision_surgery
+- first_surgery_for_local_recurrence
+- second_or_more_surgery_for_local_recurrence
+- first_surgery_for_metastasis
+- second_or_more_surgery_for_metastasis
+- other_reason

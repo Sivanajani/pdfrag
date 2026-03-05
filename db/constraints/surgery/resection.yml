@@ -1,0 +1,98 @@
+- "not_applicable"
+
+- label: "label_soft_tissues"
+  children:
+    - "res_a_1_simple"
+    - "res_a_2_muscle_resection"
+    - "res_a_3_vessel_dissection"
+    - "res_a_4_nerve_dissection"
+    - "res_a_5_periost_resection"
+    - "res_a_6_bone_resection"
+    - "res_a_7_vessel_resection"
+    - "res_a_8_nerve_resection"
+    - "res_a_9_mr_hifu"
+    - "res_a_10_tendon_resection"
+    - "res_a_11_ligament_resection"
+    - "res_a_12_resection_of_funiculus_scrotum_genitals"
+    - "res_a_13_other_sts_resection"
+
+- label: "label_bone"
+  children:
+    - "res_b_1_simple_curettage"
+    - "res_b_2_hemi_cortex_resection"
+    - "res_b_3_complete_whole_bone_res_joint_sparing"
+    - "res_b_4_complete_whole_bone_res_transarticular_resection"
+    - "res_b_5_complete_whole_bone_res_extraarticular_joint_resection"
+    - "res_b_6_with_3d_patient_specific_cutting_guides"
+    - "res_b_6_1_3d_planning"
+    - "res_b_8_radiofrequency_ablation_rfa_cryotherapy_mr_hifu"
+    - "res_b_9_resection_replantation_upper_extremity"
+    - "res_b_10_rotationplasty_lower_extremity"
+    - "res_b_80_tendon_resection"
+    - "res_b_81_ligament_resection"
+    - "res_b_82_forced_epiphyseolysis_ot_canadell_technique"
+    - "res_b_83_extra_articular_scapulo_humeral_resection_tikhoff_linberg"
+    - "res_b_84_biopsy_gain_of_diagnostic_tissue"
+    - "res_b_85_removal_of_cement"
+    - "res_b_86_other_bone_resection"
+
+- label: "label_chest_thorax"
+  children:
+    - label: "label_chest_wall_resection"
+      children:
+        - "res_c_1_chest_wall_resection"
+    - label: "label_open_thoracotomy"
+      children:
+        - "res_c_2_wedge_resection"
+        - "res_c_3_segmental_resection"
+        - "res_c_4_lobectomy"
+        - "res_c_5_bilobectomy_pneumonectomy"
+        - "res_c_6_pleuropneumonectomy"
+        - "res_c_7_thoracic_wall_resection_ribs"
+        - "res_c_10_other_chest_lung_resection"
+    - label: "label_thoraco_endoscopic_resection_vats"
+      children:
+        - "res_c_8_wedge_resection"
+        - "res_c_9_lobectomy"
+
+- label: "label_abdomen"
+  children:
+    - label: "label_abdominal_wall_resection"
+      children:
+        - "res_d_1_abdominal_wall_resection"
+    - label: "label_abdominal_resection"
+      children:
+        - "res_d_2_none"
+        - "res_d_3_kidney"
+        - "res_d_4_suprarenal_glands"
+        - "res_d_5_ureter"
+        - "res_d_6_bladder"
+        - "res_d_7_colon_rectum"
+        - "res_d_8_bowel"
+        - "res_d_9_uterus_ovaries"
+        - "res_d_10_spleen"
+        - "res_d_11_liver"
+        - "res_d_12_pancreas"
+        - "res_d_13_gall_bladder"
+        - "res_d_14_aorta_cava"
+        - "res_d_15_other_abdominal_resection"
+
+- label: "label_sequelae_of_primary_treatment"
+  children:
+    - label: "label_soft_tissue_revision"
+      children:
+        - "res_e_5_infection"
+        - "res_e_7_wound_healing_failure"
+    - label: "label_bone_revision"
+      children:
+        - "res_e_8_infection"
+        - "res_e_9_osteosynthesis_failure"
+        - "res_e_10_fracture"
+        - "res_e_12_pseudoarthrosis"
+    - label: "label_st_post_tumor_prosthesis_implantation"
+      children:
+        - "res_e_1_debridement"
+        - "res_e_2_inlay_change"
+        - "res_e_3_partial_removal_of_prosthesis"
+        - "res_e_4_complete_removal_of_prosthesis"
+        - "res_e_11_other"

@@ -1,0 +1,575 @@
+en:
+  date:
+    formats:
+      default: "%d.%m.%Y"
+  unauthorized:
+    manage:
+      all: "Not authorized to %{action} %{subject}."
+  croms:
+    shared:
+      discard: "Discard"
+      save: "Save"
+      edit: "Edit"
+      add: "Add"
+      remove: "Remove"
+      remove_file: "Remove %{filename}"
+      "yes": "Yes"
+      "no": "No"
+      back: "Back"
+      delete: "Delete"
+      approve: "Approve"
+      not_attached: "Not attached"
+      form_steps:
+        documents: "DOCUMENTS"
+
+      confirm_discard: "Are you sure you want to discard your changes?"
+      confirm_delete: "Are you sure you want to delete this record?"
+      pagination:
+        rows_per_page: "Rows per page"
+        page_info: "Page %{current} of %{total}"
+        go_to_first: "Go to first page"
+        go_to_previous: "Go to previous page"
+        go_to_next: "Go to next page"
+        go_to_last: "Go to last page"
+    session:
+      try_later: "Try again later"
+      invalid_credentials: "Wrong email address or password."
+      title: "SHAPEHub Login"
+      sign_in: "Sign in"
+      logout: "Logout"
+      reset_password: "Reset password"
+      place_holders:
+        email: "Email address"
+        password: "Password"
+        password_confirmation: "Password confirmation"
+    passwords:
+      reset_token_expired: "Password reset link is invalid or has expired."
+      new:
+        title: "Reset your password"
+        submit: "Send instructions"
+      edit:
+        title: "Update your password"
+        submit: "Save"
+      create:
+        sent: "Password reset instructions sent (if user with that email address exists)."
+      update:
+        success: "Password has been reset."
+        failure: "Passwords did not match."
+    passwords_mailer:
+      subject: "SHAPEHub Password Reset Instructions"
+      salutation: "Good day,"
+      body: "You can reset your password within the next %{minutes} minutes here:"
+      greetings: "Best regards,"
+      greetings_signature: "SHAPEHub Team"
+    systemic_therapies:
+      title: "Systemic Therapies"
+      table:
+        cycle_start_date: "Cycle Start Date"
+        disease_state: "Disease state at start"
+        imaging_anchor: "Imaging anchor"
+        number_of_lines: "Line Number"
+        number_of_cycles: "Number of Cycles"
+        drugs: "Drugs"
+        ecog_at_start: "ECOG at start"
+        no_records: "No systemic therapies yet"
+      form_steps:
+        administration: "ADMINISTRATION"
+        drugs: "DRUGS"
+        hyperthermia: "HYPERTHERMIA"
+        adverse_events: "ADVERSE EVENTS"
+      create:
+        success: "Systemic Therapy created"
+        error: "Systemic Therapy could not be created"
+      update:
+        success: "Systemic Therapy updated"
+        error: "Systemic Therapy could not be updated"
+    radio_therapies:
+      title: "Radiotherapy"
+      table:
+        therapy_start_date: "Start Date"
+        therapy_types: "Types"
+        responsible_oncologist: "Responsible Oncologist"
+        total_dose_in_gy: "Total Dose [Gy]"
+        number_of_fractions: "Number of Fractions"
+        no_records: "No therapies yet"
+      form_steps:
+        administration: "ADMINISTRATION"
+        drugs: "DOSE & VOLUMES"
+        hyperthermia: "HYPERTHERMIA"
+      create:
+        success: "Radiotherapy created"
+      update:
+        success: "Radiotherapy updated"
+    sarcoma_boards:
+      title: "Sarcoma board summary"
+      participants: "Sarcoma board participants"
+      table:
+        date: "Presentation date"
+        decision: "Summary of Sarcoma Board decision"
+        no_records: "No sarcoma boards yet"
+      form_steps:
+        general_information: "GENERAL SARCOMA BOARD INFORMATION"
+        question: "QUESTION TO THE SARCOMA BOARD"
+        performance_status: "CURRENT PERFORMANCE STATUS"
+        protocol: "SARCOMA BOARD PROTOCOL"
+      show:
+        protocol: Protocol
+      create:
+        success: "Sarcoma Board created"
+        error: "Sarcoma Board could not be created"
+      update:
+        success: "Sarcoma Board updated"
+        error: "Sarcoma Board could not be updated"
+    pathologies:
+      title: "Pathologies"
+      table:
+        date: "Date of final Pathology report"
+        diagnosis: "WHO 2020 diagnosis"
+        grading: "Grading"
+        biopsy_type: "Type of biopsy"
+        biopsied_lesion_type: "Type of Specimen"
+        no_records: "No pathologies yet"
+      form_steps:
+        administration: "ADMINISTRATION"
+        surgical: "SURGICAL"
+        diagnosis: "DIAGNOSIS"
+        diagnostic: "DIAGNOSTICS"
+      create:
+        success: "Pathology created"
+        error: "Pathology could not be created"
+      update:
+        success: "Pathology updated"
+        error: "Pathology could not be updated"
+    surgeries:
+      title: "Surgeries"
+      table:
+        surgery_date: "Surgery date"
+        surgeon: "Surgeon"
+        anatomic_region: "Anatomic region"
+        side: "Side"
+        resection: "Resection"
+        reconstruction: "Reconstruction"
+        margin: "Margin"
+        no_records: "No surgeries yet"
+      form_steps:
+        general_information: "GENERAL INFORMATION"
+        surgical_procedure_details: "SURGICAL PROCEDURE DETAILS"
+        surgical_interventions_outcomes: "SURGICAL INTERVENTIONS/OUTCOMES"
+        additional_information: "ADDITIONAL INFORMATION"
+      create:
+        success: "Surgery created"
+        error: "Surgery could not be created"
+      update:
+        success: "Surgery updated"
+        error: "Surgery could not be updated"
+    radiology_exams:
+      title: "Radiology summary"
+      table:
+        date: "Date"
+        type: "Type"
+        timing: "Timing"
+        exam: "Exam"
+        local_disease: "Local disease"
+        metastasis: "Metastasis"
+        no_records: "No radiology exams yet"
+      form_steps:
+        lesion_details: "DETAILS ABOUT THE LESION"
+        disease_overview: "DISEASE OVERVIEW – LOCAL DISEASE"
+        disease_overview_metastasis: "DISEASE OVERVIEW – METASTASIS"
+        treatment_response: "TREATMENT RESPONSE"
+      create:
+        success: "Radiology Exam created"
+      update:
+        success: "Radiology Exam updated"
+    common_terminology_criteria:
+      title: "Common Terminology Criteria"
+      selected_type: "Selected Type"
+      medical_area: "Medical Area"
+      definition: "Definition"
+      selected_grade: "Selected Grade"
+      update_text: "Update Text"
+      show_module: "Show CTCAE module"
+    patient_registrations:
+      new:
+        title: "Patient Registration"
+        submit: "Submit patient registration"
+        form_steps:
+          diagnosis: "DIAGNOSIS"
+          sarcoma_board: "SARCOMA BOARD"
+          radiology_exam: "RADIOLOGY"
+          pathology: "PATHOLOGY"
+      create:
+        success: "Patient registration successfully submitted"
+        error: "Patient registration could not be submitted"
+
+    attachments:
+      title: "Files"
+      download: "Download"
+      table:
+        created_at: "Uploaded at"
+        file_name: "File name"
+        category: "Category"
+        no_records: "No attachments yet"
+      create:
+        success: "Attachment created"
+        error: "Attachment could not be created"
+      update:
+        success: "Attachment updated"
+        error: "Attachment could not be updated"
+    patients:
+      edit: "Edit patient data"
+
+      patient_title: "Patient Data"
+      diagnosis_title: "Diagnosis"
+      institutions: "Institutions"
+
+      index:
+        title: "Patients"
+        add_patient: "Add Patient"
+        no_records: "No patients found"
+        total_records: "Total of %{count} patient(s)"
+        search: "Search"
+        search_placeholder: "Search by name, AHV or PID..."
+
+      new:
+        title: "New Patient"
+
+      create:
+        success: "Patient created"
+        error: "Patient could not be created"
+      update:
+        success: "Patient updated"
+        error: "Patient could not be updated"
+
+      form_steps:
+        contact_information: "CONTACT INFORMATION"
+        insurance: "INSURANCE"
+        general_practitioner: "GP/REFERRING PHYSICIAN"
+    sarcoma_board_patients:
+      index:
+        title: "Sarcoma Board Patients"
+        no_records: "No patients found"
+        total_records: "Total of %{count} patient(s)"
+    diagnosis:
+      form_steps:
+        other_medical_history: "OTHER MEDICAL HISTORY"
+        additional_tumor: "SECOND TUMOR"
+        performance_status: "PERFORMANCE STATUS AT TIME OF DIAGNOSIS"
+        follow_up: "Follow up"
+    sarcoma_board_protocol:
+      filename: "%{date}-sarcoma-board-protocol.pdf"
+      title: "SARCOMA-BOARD PROTOCOL"
+      header:
+        board: "The Tumor Board of the"
+        institution: "SwissSarcomaNetwork"
+        website: "www.swiss-sarcoma.net"
+      patient_identification:
+        pid: "PID: %{pid}"
+        institutions: "Institutions: %{institutions}"
+      diagnosis:
+        title: "Diagnose (WHO):"
+      ssn_question:
+        title: "Question to the SSN:"
+      clinical_summary:
+        summary_patient_information: "Summary of Clinical Presentation:"
+        summary_radiology: "Summary of Radiology:"
+        summary_pathology: "Summary of Pathology:"
+      sarcoma_board_summary:
+        decision: "Summary of SarcomaBoard discussions & decisions:"
+        next_steps: "Next organizational Steps / To-Do list:"
+      decisions:
+        category: "Category"
+        decision: "Decision"
+        further_diagnostics: "Further diagnostics required"
+        surgery: "Decision regarding surgery"
+        radio_therapy: "Decision regarding radiotherapy"
+        systemic_therapy: "Decision regarding systemic therapy"
+        follow_up: "Decision regarding follow-up monitoring"
+      participants:
+        title: "Participants / Specialty / Institutions:"
+
+    errors:
+      prohibited_from_saving: "prohibited this record from being saved:"
+
+    layout:
+      header:
+        navigation:
+          sarcome_board: "SB"
+          radiology: "RAD"
+          pathology: "PAT"
+          surgery: "SUR"
+          radio_therapy: "RT"
+          systematic_therapy: "SYST"
+          attachments: "Files"
+          patients: "Patients"
+          patient_registration: "Patient Registration"
+          sarcoma_board_patients: "Sarcoma Board"
+
+  activemodel:
+    attributes:
+      croms/common_terminology_criteria:
+        medical_area: "Medical Area"
+        event_type: "Event Type"
+        grade: "Grade"
+  activerecord:
+    attributes:
+      croms/user:
+        institution_ids: "Institutions"
+      croms/radiology_exam:
+        exam_date: "Date of radiology exam"
+        exam_type: "Type of radiology exam"
+        imaging_timing: "Timing of Imaging (Episode Purpose)"
+        imaging_type: "Type of imaging"
+        largest_lesion_size_in_mm: "Size A [mm] (largest dimension)"
+        medium_lesion_size_in_mm: "Size B [mm]"
+        smallest_lesion_size_in_mm: "Size C [mm] (smallest dimension)"
+        location_of_lesion: "Location of lesion in relation to fascia/bone"
+        recist_response: "Response according to RECIST 1.1"
+        choi_response: "Response according to CHOI (use of TKI)"
+        irecist_response: "Response according to iRECIST"
+        pet_response: "Response according to PET (PERCIST)"
+        metastasis_presence: "Presence of metastasis"
+        report_file: "Radiology Report (PDF)"
+        report_date: "Radiology report date"
+        local_disease_status: "Local Status (at this episode)"
+        local_disease_measurable: "Local Lesion Measurability & response"
+        local_disease_report_largest_diameter: "Report largest diameter [mm]"
+        local_disease_qualitative_mri_response: "Qualitative MRI response"
+        local_disease_radiologist_confidence: "Radiologist confidence"
+        local_disease_pet_metabolic_response: "PET metabolic response"
+
+        metastasis: "Metastasis"
+        anatomic_location_of_metastasis: "Anatomic location of metastasis"
+        metastasis_location_lung_count: "Lung lesion count class"
+        metastasis_location_pleura_count: "Pleura lesion count class"
+        metastasis_location_bone_count: "Bone lesion count class"
+        metastasis_location_liver_count: "Liver lesion count class"
+        metastasis_location_soft_tissue_count: "Soft tissue lesion count class"
+        metastasis_location_lymph_node_count: "Lymph node lesion count class"
+        metastasis_location_brain_count: "Brain lesion count class"
+        metastasis_location_other_count: "Other lesion count class"
+
+        metastasis_target_lesion_count: "Dominant lesion metrics (per RECIST-style): Select up to 5 target lesion"
+        metastasis_longest_diameter_mm: "Dominant lesion metrics (per RECIST-style): Record longest diameter [mm]"
+        metastasis_indeterminate_category: "Indeterminate category"
+      croms/patient:
+        reference_code: "PID"
+        consent: "The patient has given informed consent (responsibility of each registering institution)"
+        ahv: "AHV"
+        last_name: "Last name"
+        first_name: "First name"
+        birth_date: "Date of birth"
+        gender: "Gender"
+        address: "Address"
+        street_name: "Street name"
+        street_number: "Street number"
+        zip_code: "Zip code"
+        city: "City"
+        country: "Country"
+        phone_number: "Phone number"
+        email: "Email address"
+        insurance_name: "Insurance name"
+        insurance_class: "Insurance class"
+        insurance_number: "Insurance number"
+        general_practitioner_name: "General practitioner name"
+        general_practitioner_email: "General practitioner email"
+        general_practitioner_location: "General practitioner location"
+        institution_ids: "Institutions"
+      croms/diagnosis:
+        tumor_anatomic_region: "Anatomic region"
+        tumor_anatomic_lesion_side: "Anatomic side of lesion"
+        tumor_syndromes: "Known (cancer) syndrome or previous cancer"
+        tumor_diagnosis: "Main referral diagnosis"
+        additional_tumor_anatomic_region: "Additional tumor anatomic region"
+        additional_tumor_anatomic_lesion_side: "Additional tumor anatomic side of lesion"
+        additional_tumor_diagnosis: "Clinical history for additional tumor"
+        other_diagnosis: "Other diagnoses"
+        patient_history: "Patient history (clinics, therapy up to now...)"
+        diagnosis_ecog: "ECOG"
+        last_contact_date: "Last contact date"
+        first_contact_date: "First contact date"
+        last_status: "Last status"
+        death_reason: "Death reason"
+        patient: "Patient"
+      croms/sarcoma_board:
+        presentation_date: "Date of sarcoma board presentation"
+        reason_for_presentation: "Reason for sarcoma board presentation"
+        presenting_physician: "Presenting physician"
+        presenting_physician_id: "Presenting physician"
+        current_situation: "What is the current situation?"
+        question: "Question to the Sarcoma Board"
+        last_execution: "Was the last SB decision executed?"
+        patient_history: "Patient history"
+        proposed_procedure: "Suggestion on how to proceed"
+        current_ecog: "Current ECOG"
+        decision_surgery: "Decision regarding surgery"
+        decision_surgery_comment: "Comment"
+        decision_radio_therapy: "Decision regarding radiotherapy"
+        decision_radio_therapy_comment: "Comment"
+        decision_systemic_surgery: "Decision regarding systemic therapy"
+        decision_systemic_surgery_comment: "Comment"
+        decision_follow_up: "Decision regarding follow-up monitoring"
+        decision_follow_up_comment: "Comment"
+        decision_diagnostics: "Further diagnostics required"
+        decision_diagnostics_comment: "Comment"
+        decision_palliative_care: "Palliative care"
+        decision_palliative_care_comment: "Comment"
+        summary: "Summary of Sarcoma Board decision"
+        summary_patient_information: "Summary Patient Information"
+        summary_radiology: "Summary Radiology"
+        summary_pathology: "Summary Pathology"
+        further_details: "Further details regarding Sarcoma Board (incl. organisational matters)"
+        fast_track: "Fast track?"
+        whoops_surgery_institution_id: "WHOOPS surgery institution"
+        participant_user_ids: "Participants"
+      croms/pathology:
+        biopsied_lesion_type: "Type of Specimen"
+        biopsy_type: "Type of biopsy"
+        biopsy_resection_date: "Date of biopsy or resection"
+        registrate_date: "Date of registrate in the pathology institute"
+        report: "Pathology report (text)"
+        report_file: "Pathology report (PDF)"
+        report_date: "Pathology report date"
+        first_report_date: "Date of first written report"
+        final_report_date: "Date of final report"
+        prior_treatment: "Prior treatment"
+        who_diagnosis: "WHO 2020 diagnosis"
+        diagnostic_grading: "Grading (of biopsy/resection)"
+        judgment_of_surgical_margin: "Judgment of surgical margin"
+        proliferation_index: "Proliferation index: Mib-1/Ki-67"
+        mitoses_per_10hpf: "Mitoses per 10 high-power field (HPF)"
+        extent_of_necrosis: "Extent of necrosis"
+        closest_distance_to_margin_mm: "Closest distance to margin [mm]"
+        biological_barrier_to_closest_margin: "Biological barrier to closest margin"
+        ihc_performed_status: "Was IHC performed?"
+        eortc_response_grade: "EORTC response grade"
+        fish_performed_status: "Was FISH performed?"
+        rna_performed_status: "Was RNA performed?"
+        dna_performed_status: "Was DNA performed?"
+        ihc_result: "What was the IHC result?"
+        fish_result: "What was the FISH result?"
+        rna_result: "What was the RNA result?"
+        dna_result: "What was the DNA result?"
+        responsible_pathologist: "Responsible pathologist"
+      croms/systemic_therapy:
+        was_rct_concomittant: "Was chemotherapy concomittant to radiotherapy (RCT)?"
+        cycle_start_date: "Start Date"
+        cycles_executed: "Cycles executed"
+        cycle_end_date: "End Date"
+        responsible_oncologist: "Responsible Medical Oncologist"
+      croms/radio_therapy:
+        indications: "Indications for radiotherapy"
+        therapy_types: "Types of radiotherapy"
+        referral_date: "Date of referral / referral letter"
+        first_contact_date: "Date of 1st contact / consultation for Radiotherapy"
+        therapy_start_date: "When was radiotherapy started?"
+        therapy_end_date: "When did radiotherapy end?"
+        institution_name: "Institution where Radiotherapy was conducted?"
+        total_dose_in_gy: "What was the total dose used in Radiotherapy? [Gy]"
+        given_fractions: "How many number of fractions were given?"
+        ptv_volume_in_cm3: "What was the PTV volume [cm3]?"
+        gtv_volume_in_cm3: "What was the GTV volume [cm3]?"
+        was_tumor_located_in_radiated_area: "Is the tumor located in a previously radiated location?"
+        was_tumor_located_with_pre_existing_lymph_edema: "Is the tumor located in a location with pre-existing lymph edema?"
+        comments: "Comments about radiotherapy"
+        responsible_oncologist: "Responsible oncologist"
+      croms/surgery:
+        responsible_surgeon: "Responsible surgeon"
+        anatomic_region: "Anatomic region classification"
+        amputation: "Amputation (incl. Hindquarter Amputation/external hemipelvectomy)"
+        hemipelvectomy: "Internal Hemipelvectomy"
+      croms/patient_registration:
+        patient_reference_code: "PID"
+        patient_consent: "The patient has given informed consent (responsibility of each registering institution)"
+        patient_birth_date: "Date of birth"
+        patient_first_name: "First name"
+        patient_last_name: "Last name"
+        patient_gender: "Gender"
+        patient_street_name: "Street name"
+        patient_street_number: "Street number"
+        patient_city: "City"
+        patient_zip_code: "Zip code"
+        patient_country: "Country"
+        patient_phone_number: "Phone number"
+        patient_ahv: "AHV"
+        patient_insurance_name: "Insurance name"
+        patient_insurance_number: "Insurance number"
+        patient_general_practitioner_name: "General practitioner name"
+        patient_general_practitioner_email: "General practitioner email"
+        patient_general_practitioner_location: "General practitioner location"
+        patient_institution_ids: "Institutions"
+        sarcoma_board_reason_for_presentation: "Reason for sarcoma board presentation"
+        sarcoma_board_question: "Question to the Sarcoma Board"
+        sarcoma_board_proposed_procedure: "Suggestion on how to proceed"
+        sarcoma_board_presentation_date: "Date of sarcoma board presentation"
+        sarcoma_board_presenting_physician: "Presenting physician"
+        sarcoma_board_presenting_physician_id: "Presenting physician"
+        diagnosis_tumor_diagnosis: "Main referral diagnosis"
+        diagnosis_other_diagnosis: "Other diagnoses"
+        diagnosis_tumor_anatomic_region: "Anatomic region"
+        diagnosis_tumor_anatomic_lesion_side: "Anatomic side of lesion"
+        diagnosis_patient_history: "Patient history (clinics, therapy up to now...)"
+        diagnosis_first_contact_date: "First contact date"
+        pathology_who_diagnosis: "WHO 2020 diagnosis"
+        pathology_biopsied_lesion_type: "Type of Specimen"
+        pathology_biopsy_resection_date: "Date of biopsy or resection"
+        pathology_biopsy_type: "Type of biopsy"
+        pathology_responsible_pathologist_id: "Responsible pathologist"
+        pathology_institution_id: "Institution"
+        radiology_exam_exam_date: "Date of radiology exam"
+        radiology_exam_exam_type: "Type of radiology exam"
+        radiology_exam_exam_type_comment: "Comment on radiology exam type"
+        radiology_exam_imaging_timing: "Timing of Imaging (Episode Purpose)"
+        radiology_exam_imaging_type: "Type of imaging"
+        radiology_exam_largest_lesion_size_in_mm: "Size A [mm] (largest dimension)"
+        radiology_exam_medium_lesion_size_in_mm: "Size B [mm]"
+        radiology_exam_smallest_lesion_size_in_mm: "Size C [mm] (smallest dimension)"
+        radiology_exam_metastasis_presence: "Presence of metastasis"
+        radiology_exam_local_disease_status: "Local Status (at this episode)"
+        radiology_exam_report_file: "Radiology report (PDF)"
+        radiology_exam_report_date: "Radiology report date"
+        pathology_report_file: "Pathology report (PDF)"
+        pathology_report_date: "Pathology report date"
+
+    errors:
+      models:
+        croms/attachment:
+          attributes:
+            file:
+              too_large: "The file is too large. Maximum %{max_size} MB allowed."
+        croms/radiology_exam:
+          attributes:
+            base:
+              invalid_lesion_size_order: "Lesion size order is not correct"
+        croms/sarcoma_board:
+          attributes:
+            presentation_date:
+              not_tuesday: "must be a Tuesday"
+
+        croms/diagnosis:
+          attributes:
+            tumor_syndromes:
+              invalid: "must be one of the following: %{values}"
+            first_contact_date:
+              must_be_in_past: "must be in the past"
+              too_old: "cannot be more than %{years} ago"
+        croms/patient:
+          attributes:
+            ahv:
+              invalid_format: "must be a valid Swiss AHV number (format: 756.xxxx.xxxx.xx)"
+              invalid_check_digit: "has an invalid check digit"
+            birth_date:
+              must_be_in_past: "must be in the past"
+              too_old: "cannot be more than %{years} ago"
+        croms/patient_registration:
+          attributes:
+            diagnosis_first_contact_date:
+              must_be_in_past: "must be in the past"
+            radiology_exam_report_file:
+              too_large: "The file is too large. Maximum %{max_size} MB allowed."
+            pathology_report_file:
+              too_large: "The file is too large. Maximum %{max_size} MB allowed."
+        croms/adverse_event:
+          attributes:
+            base:
+              invalid_ctcae_configuration: "CTCAE configuration is not valid"

@@ -1,0 +1,291 @@
+- "not_yet_established"
+- "0_non_neoplastic_tumor_simulator"
+
+- label: "label_soft_tissue_tumors"
+  children:
+    - label: "label_adipocytic_tumors"
+      children:
+        - "1_1_1_lipoma"
+        - "1_1_2_lipomatosis"
+        - "1_1_3_lipomatosis_of_nerve"
+        - "1_1_4_lipoblastoma_lipoblastomatosis"
+        - "1_1_5_angiolipoma"
+        - "1_1_6_myolipoma_of_soft_tissue"
+        - "1_1_7_chondroid_lipoma"
+        - "1_1_8_spindle_cell_lipoma_and_pleomorphic_lipoma"
+        - "1_1_9_hibernoma"
+        - "1_1_10_atypical_spindle_cell_pleomorphic_lipomatous_tumour"
+        - "1_2_1_atypical_lipomatous_tumour_well_differentiated_liposarcoma"
+        - "1_3_1_dedifferentiated_liposarcoma"
+        - "1_3_2_myxoid_liposarcoma"
+        - "1_3_3_pleomorphic_liposarcoma"
+        - "1_3_4_myxoid_pleomorphic_liposarcoma"
+    - label: "label_fibroblastic_myofibroblastic_tumors"
+      children:
+        - "2_1_1_nodular_fasciitis"
+        - "2_1_2_proliferative_fasciitis"
+        - "2_1_3_proliferative_myositis"
+        - "2_1_4_myositis_ossificans"
+        - "2_1_5_fibro_osseous_pseudotumour_of_digits"
+        - "2_1_6_ischaemic_fasciitis"
+        - "2_1_7_elastofibroma"
+        - "2_1_8_fibrous_hamartoma_of_infancy"
+        - "2_1_9_fibromatosis_colli"
+        - "2_1_10_juvenile_hyaline_fibromatosis"
+        - "2_1_11_inclusion_body_fibromatosis"
+        - "2_1_12_fibroma_of_tendon_sheath"
+        - "2_1_13_desmoplastic_fibroblastoma"
+        - "2_1_14_myofibroblastoma"
+        - "2_1_15_calcifying_aponeurotic_fibroma"
+        - "2_1_16_ewsr1_smad3_positive_fibroblastic_tumour"
+        - "2_1_17_angiomyofibroblastoma"
+        - "2_1_18_cellular_angiofibroma"
+        - "2_1_19_angiofibroma_of_soft_tissue"
+        - "2_1_20_nuchal_type_fibroma"
+        - "2_1_21_acral_fibromyxoma"
+        - "2_1_22_gardner_fibroma"
+        - "2_2_1_palmar_plantar_fibromatosis"
+        - "2_2_2_desmoid_fibromatosis"
+        - "2_2_3_lipofibromatosis"
+        - "2_2_4_giant_cell_fibroblastoma"
+        - "2_2_5_dermatofibrosarcoma_protuberans"
+        - "2_2_6_solitary_fibrous_tumour"
+        - "2_2_7_inflammatory_myofibroblastic_tumour"
+        - "2_2_8_low_grade_myofibroblastic_sarcoma"
+        - "2_2_9_superficial_cd34_positive_fibroblastic_tumour"
+        - "2_2_10_myxoinflammatory_fibroblastic_sarcoma"
+        - "2_2_11_infantile_fibrosarcoma"
+        - "2_2_12_fibrosarcomatous_dermatofibrosarcoma_protuberans"
+        - "2_2_13_pigmented_dermatofibrosarcoma_protuberans"
+        - "2_3_1_adult_fibrosarcoma"
+        - "2_3_2_myxofibrosarcoma"
+        - "2_3_3_low_grade_fibromyxoid_sarcoma"
+        - "2_3_4_sclerosing_epithelioid_fibrosarcoma"
+    - label: "label_fibrohistiocytic_tumors"
+      children:
+        - "3_2_1_tenosynovial_giant_cell_tumour"
+        - "3_1_1_deep_fibrous_histiocytoma"
+        - "3_2_2_plexiform_fibrohistiocytic_tumour"
+        - "3_2_3_giant_cell_tumour_of_soft_tissues"
+    - label: "label_vascular_tumors"
+      children:
+        - "4_1_1_synovial_haemangioma"
+        - "4_1_2_intramuscular_angioma"
+        - "4_1_3_arteriovenous_malformation_hemangioma"
+        - "4_1_4_venous_hemangioma"
+        - "4_1_5_anastomosing_hemangioma"
+        - "4_1_6_epithelioid_hemangioma"
+        - "4_1_7_lymphangioma_and_lymphangiomatosis"
+        - "4_2_1_tufted_angioma_and_kaposiform_haemangioendothelioma"
+        - "4_2_2_retiform_haemangioendothelioma"
+        - "4_2_3_papillary_intralymphatic_angioendothelioma"
+        - "4_2_4_composite_haemangioendothelioma"
+        - "4_2_5_pseudomyogenic_haemangioendothelioma"
+        - "4_2_6_kaposi_sarcoma"
+        - "4_3_1_epithelioid_haemangioendothelioma"
+        - "4_3_2_angiosarcoma"
+    - label: "label_pericytic_tumors"
+      children:
+        - "5_2_1_glomus_tumour"
+        - "5_2_2_myopericytoma_including_myofibroma"
+        - "5_1_1_angioleiomyoma"
+    - label: "label_smooth_muscle_tumors"
+      children:
+        - "6_1_1_leiomyoma"
+        - "6_2_1_ebv_associated_smooth_muscle_tumour"
+        - "6_3_1_inflammatory_leiomyosarcoma"
+        - "6_3_2_leiomyosarcoma"
+    - label: "label_skeletal_muscle_tumors"
+      children:
+        - "7_1_1_rhabdomyoma"
+        - "7_3_1_embryonal_rhabdomyosarcoma"
+        - "7_3_2_alveolar_rhabdomyosarcoma"
+        - "7_3_3_pleomorphic_rhabdomyosarcoma"
+        - "7_3_4_spindle_cell_sclerosing_rhabdomyosarcoma"
+        - "7_3_5_ectomesenchymoma"
+    - label: "label_gist"
+      children:
+        - "8_3_1_gastrointestinal_stromal_tumour"
+    - label: "label_chondro_osseous_tumors"
+      children:
+        - "9_1_1_soft_tissue_chondroma"
+        - "9_3_1_extraskeletal_osteosarcoma"
+    - label: "label_peripheral_nerve_sheath_tumors"
+      children:
+        - "10_1_1_schwannoma"
+        - "10_1_2_neurofibroma"
+        - "10_1_3_perineurinoma"
+        - "10_1_4_granular_cell_tumour"
+        - "10_1_5_dermal_nerve_sheath_tumour"
+        - "10_1_6_solitary_circumscribed_neuroma"
+        - "10_1_7_ectopic_meningioma_and_meningothelial_hamartoma"
+        - "10_1_8_benign_triton_tumour_neuromuscular_choristoma"
+        - "10_1_9_hybrid_nerve_sheath_tumours"
+        - "10_3_1_malignant_peripheral_nerve_sheath_tumour"
+        - "10_3_2_malignant_melanotic_nerve_sheath_tumour"
+    - label: "label_tumors_of_uncertain_origin"
+      children:
+        - "11_1_1_intramuscular_myxoma"
+        - "11_1_2_juxta_articular_myxoma"
+        - "11_1_3_deep_angiomyxoma"
+        - "11_2_1_atypical_fibroxanthoma"
+        - "11_2_2_angiomatoid_fibrous_histiocytoma"
+        - "11_2_3_ossifying_fibromyxoid_tumour"
+        - "11_2_4_myoepithelioma_myoepithelial_carcinoma_and_mixed_tumor"
+        - "11_2_5_pleomorphic_hyalinizing_angiectatic_tumour_of_soft_parts"
+        - "11_2_6_haemosiderotic_fibrolipomatous_tumour"
+        - "11_2_7_phosphaturic_mesenchymal_tumour"
+        - "11_3_1_ntrk_rearranged_spindle_cell_neoplasm"
+        - "11_3_2_synovial_sarcoma"
+        - "11_3_3_epithelioid_sarcoma"
+        - "11_3_4_alveolar_soft_part_sarcoma"
+        - "11_3_5_clear_cell_sarcoma_of_soft_tissue"
+        - "11_3_6_extraskeletal_myxoid_chondrosarcoma"
+        - "11_3_7_desmoplastic_small_round_cell_tumour"
+        - "11_3_8_extra_renal_rhabdoid_tumour"
+        - "11_3_9_pecoma"
+        - "11_3_10_intimal_sarcoma"
+        - "11_3_11_undifferentiated_sarcoma"
+
+- label: "label_undifferentiated_small_round_cell_sarcomas"
+  children:
+    - label: "label_small_round_cell_sarcomas"
+      children:
+        - "12_3_1_ewing_sarcoma"
+        - "12_3_2_round_cell_sarcoma_with_ewsr1_non_ets_fusions"
+        - "12_3_3_cic_rearranged_sarcoma"
+        - "12_3_4_sarcoma_with_bcor_genetic_alterations"
+
+- label: "label_bone_tumours"
+  children:
+    - label: "label_chondrogenic_tumors"
+      children:
+        - "13_1_1_subungual_exostosis"
+        - "13_1_2_bizarre_parosteal_osteochondromatous_proliferation"
+        - "13_1_3_periosteal_chondroma"
+        - "13_1_4_enchondroma"
+        - "13_1_5_osteochondroma"
+        - "13_1_6_chondroblastoma"
+        - "13_1_7_chondromyxoid_fibroma"
+        - "13_1_8_osteochondromyxoma"
+        - "13_2_1_synovial_chondromatosis"
+        - "13_2_2_central_atypical_cartilaginous_tumour_chondrosarcoma_grade_i"
+        - "13_2_3_secondary_peripheral_atypical_cartilaginous_tumour_chondrosarcoma_grade_i"
+        - "13_3_1_central_chondrosarcoma_grade_ii_grade_iii"
+        - "13_3_2_secondary_peripheral_chondrosarcoma_grad_ii_grade_iii"
+        - "13_3_3_periosteal_chondrosarcoma"
+        - "13_3_4_clear_cell_chondrosarcoma"
+        - "13_3_5_mesenchymal_chondrosarcoma"
+        - "13_3_6_dedifferentiated_chondrosarcoma"
+    - label: "label_osteogenic_tumors"
+      children:
+        - "14_1_1_osteoma"
+        - "14_1_2_osteoid_osteoma"
+        - "14_2_1_osteoblastoma"
+        - "14_3_1_low_grade_central_osteosarcoma"
+        - "14_3_2_osteosarcoma"
+        - "14_3_3_parosteal_osteosarcoma"
+        - "14_3_4_periosteal_osteosarcoma"
+        - "14_3_5_high_grade_surface_osteosarcoma"
+        - "14_3_6_secondary_osteosarcoma"
+    - label: "label_fibrogenic_tumors"
+      children:
+        - "15_2_1_desmoplastic_fibroma_of_bone"
+        - "15_3_1_fibrosarcoma_of_bone"
+    - label: "label_vascular_tumors_of_bone"
+      children:
+        - "16_1_1_haemangioma_of_bone"
+        - "16_2_1_epithelioid_haemangioma_of_bone"
+        - "16_3_1_epithelioid_hemangioendothelioma_of_bone"
+        - "16_3_2_angiosarcoma_of_bone"
+    - label: "label_osteoclastic_giant_cell_rich_tumors"
+      children:
+        - "17_1_1_aneurysmal_bone_cyst"
+        - "17_2_1_giant_cell_tumour_of_bone"
+        - "17_1_2_non_ossifying_fibroma"
+    - label: "label_notochordal_tumors"
+      children:
+        - "18_1_1_benign_notochordal_tumour"
+        - "18_3_1_conventional_chordoma"
+        - "18_3_2_dedifferentiated_chordoma"
+        - "18_3_3_poorly_differentiated_chordoma"
+    - label: "label_other_mesenchymal_tumors_of_bone"
+      children:
+        - "19_1_1_chondromesenchymal_hamartoma_of_chest_wall"
+        - "19_1_2_osteofibrous_dysplasia"
+        - "19_3_1_adamantinoma_of_long_bones"
+        - "19_3_3_simple_bone_cyst"
+        - "19_2_1_fibrocartilaginous_mesenchymoma"
+        - "19_1_3_fibrous_dysplasia"
+        - "19_1_4_lipoma_and_hibernoma_of_bone"
+        - "19_3_4_leiomyosarcoma_of_bone"
+        - "19_3_5_undifferentiated_pleomorphic_sarcoma_of_bone"
+    - label: "label_bone_metastasis"
+      children:
+        - "m_1_bone_metastases_lung"
+        - "m_2_bone_metastases_breast"
+        - "m_3_bone_metastases_prostate"
+        - "m_4_bone_metastases_kidney"
+        - "m_5_bone_metastases_thyroid"
+        - "m_6_bone_metastases_small_cell_carcinoma"
+        - "m_7_bone_metastases_squamous_cell_carcinoma"
+        - "m_8_bone_metastases_melanoma"
+        - "m_9_bone_metastases_colon_lower_gi"
+        - "m_10_bone_metastases_upper_gi"
+        - "m_11_bone_metastases_pancreas_hepatobiliary"
+        - "m_12_bone_metastases_cervix_endometrium"
+        - "m_13_bone_metastases_parotis"
+        - "m_14_bone_metastases_cup"
+        - "m_15_bone_metastases_others"
+    - label: "label_haematopoetic_neoplasms"
+      children:
+        - "b_1_solitary_plasmocytoma_of_bone"
+        - "b_2_multiple_myeloma"
+        - "b_3_primary_non_hodgkin_lymphoma_of_bone"
+        - "b_4_leukemia"
+        - "b_5_langerhans_cell_histiocytosis"
+        - "b_6_erdheim_chester_disease"
+        - "b_7_rosai_dorfman_disease"
+
+- label: "label_genetic_tumour_syndromes"
+  children:
+    - label: "label_genetic_syndromes"
+      children:
+        - "gs_1_enchondromatosis_ollier"
+        - "gs_2_enchondromatosis_maffucci"
+        - "gs_3_li_fraumeni_syndrome"
+        - "gs_4_mccune_albright_syndrome"
+        - "gs_5_multiple_osteochondromas"
+        - "gs_6_neurofibromatosis_type_1"
+        - "gs_7_rothmund_thomson_syndrome"
+        - "gs_8_werner_syndrome"
+
+- label: "label_other_tumors"
+  children:
+  - label: label_haematolymphoid_tumours_2024
+    children:
+      - ot_1_fibroblastic_reticulum_cell_sarcoma
+      - ot_2_histiocytic_sarcoma
+
+  - label: label_skin_tumours_2025
+    children:
+      - ot_3_atypical_intradermal_smooth_muscle_neoplasm
+      - ot_4_pleomorphic_dermal_sarcoma_PDS
+
+  - label: label_breast_tumours_2019
+    children:
+      - ot_5_phyllodes_tumor
+
+  - label: label_female_genital_tumours_2020
+    children:
+      - ot_6_smooth_muscle_tumors_of_uncertain_malignant_potential_STUMP
+      - ot_7_undifferentiated_uterine_sarcoma
+      - ot_8_low_grade_endometrial_stromal_sarcoma
+      - ot_9_high_grade_endometrial_stromal_sarcoma
+      - ot_10_leiomyosarcoma_of_uterus
+      - ot_11_adenosarcoma_of_uterus
+      - ot_12_carcinosarcoma_of_uterus
+
+  - label: label_central_nervous_system_tumours_2022
+    children:
+      - ot_13_CNS_neuroblastoma

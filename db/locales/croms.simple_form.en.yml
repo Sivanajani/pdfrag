@@ -1,0 +1,28 @@
+en:
+  simple_form:
+    help:
+      croms:
+        ecog_html: >
+          0: Fully active, able to carry on all pre-disease performance without restriction, corresponds to KPI 100-90<br>
+          1: Restricted in physically strenuous activity but ambulatory and able to carry out work of a light or sedentary nature, e.g., light house work, office work, corresponds to KPI 80-70<br>
+          2: Ambulatory and capable of all selfcare but unable to carry out any work activities; up and about more than 50% of waking hours, corresponds to KPI 60-50<br>
+          3: Capable of only limited selfcare; confined to bed or chair more than 50% of waking hours, corresponds to KPI 40-30<br>
+          4: Completely disabled; cannot carry on any selfcare; totally confined to bed or chair, corresponds to KPI 20-10<br>
+          5: Dead, corresponds to KPI 0<br>
+          * KPI - Karnofsky Performance Index
+        radiology_exam:
+          recist_response_html: >
+            complete remission (CR): no macroscopic tumor visible<br>
+            partial remission (PR): >30% reduction of longest tumor diameter<br>
+            stable disease (SD): neither CR, PR, OP nor PD<br>
+            progressive disease (PD): >20% increase of longest tumor diameter and/or new lesions
+          choi_response_html: >
+            complete response (CR): no macroscopic tumor visible<br>
+            partial response (PR): >10% reduction of longest tumor diameter or decrease of tumor density by 10%<br>
+            stable disease (SD): neither CR, PR, PD AND no clinical worsening<br>
+            progressive disease (PD): >10% increase in longest tumor/TL diameter; AND/OR decrease of tumor density on CT by 15%, AND/OR new lesions; AND/OR new intramural nodules OR increase of size of such intramural lesions.
+          pet_response_html: >
+            CMR: Complete resolution of 18F-FDG uptake within the measurable target lesion so that it is less than mean liver activity and at the level of surrounding background blood pool activity.<br> Disappearance of all other lesions to background blood pool levels. No new suspicious 18F-FDG avid lesions. If progression by RECIST must verify with follow up<br><br>
+            PMR: Reduction of a minimum of 30% in target measurable tumor 18F-FDG SUL peak, with absolute drop in SUL of at least 0.8 SUL units. No increase >30% of SUL or size in all other lesions. No new lesions.<br><br>
+            SMD: Not CMR, PMR, or Progressive metabolic disease (PMD). No new lesions.<br><br>
+            PMD: >30% increase in 18F-FDG SUL peak, with >0.8 SUL units increase in tumor SUV peak from the baseline scan in pattern typical of tumor and not of infection/treatment effect.<br> OR Visible increase in the extent of 18F-FDG tumor uptake. OR New 18F-FDG avid lesions which are typical of cancer and not related to treatment effect or infection.<br>
