@@ -577,6 +577,13 @@ export async function llmExtractSystemicTherapyByDocId(docId: string): Promise<S
 export type ClassifyAndExtractResponse = {
   doc_type: DocType
   events: any[]
+  raw_events?: Record<string, any>[]
+  parse_issues?: {
+    event_index: number
+    field?: string | null
+    raw_value?: any
+    error: string
+  }[]
 }
 
 export async function classifyAndExtractByText(text: string): Promise<ClassifyAndExtractResponse> {

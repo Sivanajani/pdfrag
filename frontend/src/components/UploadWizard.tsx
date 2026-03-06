@@ -44,6 +44,8 @@ type WizardDoc = {
   detectedDocType?: DocType;
   overrideDocType?: DocType;
   extractedEvents?: any[];
+  rawExtractedEvents?: any[];
+  parseIssues?: { event_index: number; field?: string | null; raw_value?: any; error: string }[];
   status: "pending" | "extracting" | "ready" | "error";
   error?: string;
 };
@@ -70,6 +72,45 @@ export type ExtractionResults = {
 type Props = {
   onResults: (results: ExtractionResults) => void;
 };
+
+function isEmptyValue(v: any): boolean {
+  return v === null || v === undefined || v === "";
+}
+
+function mergeParsedWithRaw(parsed: any, raw: any): any {
+  if (Array.isArray(parsed) || Array.isArray(raw)) {
+    const pArr = Array.isArray(parsed) ? parsed : [];
+    const rArr = Array.isArray(raw) ? raw : [];
+    if (pArr.length === 0 && rArr.length > 0) return rArr;
+    const out: any[] = [];
+    const n = Math.max(pArr.length, rArr.length);
+    for (let i = 0; i < n; i++) out.push(mergeParsedWithRaw(pArr[i], rArr[i]));
+    return out;
+  }
+
+  const pObj = parsed && typeof parsed === "object" ? parsed : null;
+  const rObj = raw && typeof raw === "object" ? raw : null;
+  if (pObj || rObj) {
+    const out: Record<string, any> = {};
+    const keys = new Set<string>([
+      ...Object.keys(rObj ?? {}),
+      ...Object.keys(pObj ?? {}),
+    ]);
+    for (const k of keys) out[k] = mergeParsedWithRaw(pObj?.[k], rObj?.[k]);
+    return out;
+  }
+
+  if (!isEmptyValue(parsed)) return parsed;
+  if (!isEmptyValue(raw)) return raw;
+  return parsed;
+}
+
+function mergeEventLists(parsedEvents: any[] = [], rawEvents: any[] = []): any[] {
+  const n = Math.max(parsedEvents.length, rawEvents.length);
+  const out: any[] = [];
+  for (let i = 0; i < n; i++) out.push(mergeParsedWithRaw(parsedEvents[i], rawEvents[i]));
+  return out;
+}
 
 export default function UploadWizard({ onResults }: Props) {
   const { t } = useTranslation();
@@ -251,10 +292,13 @@ export default function UploadWizard({ onResults }: Props) {
 
       try {
         const result = await classifyAndExtractByText(doc.extractedText);
+        const mergedEvents = mergeEventLists(result.events ?? [], result.raw_events ?? []);
         updatedDocs[i] = {
           ...updatedDocs[i],
           detectedDocType: result.doc_type,
-          extractedEvents: result.events,
+          extractedEvents: mergedEvents,
+          rawExtractedEvents: result.raw_events ?? [],
+          parseIssues: result.parse_issues ?? [],
         };
         setDocs([...updatedDocs]);
       } catch (e: any) {

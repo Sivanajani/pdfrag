@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import copy
 from typing import Any, Dict, List, Optional, Tuple
 
 import google.generativeai as genai
@@ -255,16 +256,37 @@ def normalize_raw_events(
       - This layer catches truly unknown synonyms via LLM semantics
       - Schema model_validators catch the most common static synonyms (0 tokens)
     """
+    normalized, _ = normalize_raw_events_with_meta(raw_list, topic)
+    return normalized
+
+
+def normalize_raw_events_with_meta(
+    raw_list: List[Dict[str, Any]],
+    topic: str,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Like normalize_raw_events, but returns detailed mapping metadata for debugging."""
+    before = copy.deepcopy(raw_list)
     mismatches = _collect_mismatches(raw_list, topic)
+    meta: Dict[str, Any] = {
+        "topic": topic,
+        "mismatches": mismatches,
+        "corrections": {},
+        "before": before,
+        "after": None,
+    }
+
     if not mismatches:
-        return raw_list
+        meta["after"] = copy.deepcopy(raw_list)
+        return raw_list, meta
 
     logger.info(
         "Batch-Normalisierung: %d Felder aus %d Events für topic '%s'",
         len(mismatches), len(raw_list), topic,
     )
     corrections = _batch_llm_map(mismatches)
+    meta["corrections"] = corrections or {}
     if corrections:
         raw_list = _apply_corrections(raw_list, mismatches, corrections)
 
-    return raw_list
+    meta["after"] = copy.deepcopy(raw_list)
+    return raw_list, meta

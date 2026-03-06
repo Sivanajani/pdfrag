@@ -401,6 +401,7 @@ def classify_document_type(text: str) -> str:
         return "radiology"  # Default fallback
 
     model = _get_model()
+    classify_text = build_classification_text(text)
 
     prompt = """Du bist ein medizinischer Dokumenten-Klassifikations-Assistent.
 
@@ -432,7 +433,7 @@ WICHTIG:
 Berichtstext:
 {text}
 
-Klassifikation:""".format(text=text[:5000])  # Nur erste 5000 Zeichen für schnellere Classification
+Klassifikation:""".format(text=classify_text)
 
     try:
         response = model.generate_content(prompt)
@@ -461,6 +462,34 @@ Klassifikation:""".format(text=text[:5000])  # Nur erste 5000 Zeichen für schne
     except Exception:
         # Bei Fehler: Default zu radiology
         return "radiology"
+
+
+def build_classification_text(text: str, chunk_size: int = 1200) -> str:
+    """Build a robust classification snippet: Befund section + head/middle/tail windows."""
+    if not text:
+        return ""
+
+    stripped = text.strip()
+    if not stripped:
+        return ""
+
+    n = len(stripped)
+    head = stripped[:chunk_size]
+
+    mid_start = max(0, (n // 2) - (chunk_size // 2))
+    middle = stripped[mid_start : mid_start + chunk_size]
+
+    tail = stripped[-chunk_size:] if n > chunk_size else stripped
+    befund = extract_befund_section(stripped)
+    befund = befund[: 2 * chunk_size]
+
+    parts = [
+        "=== BEFUND SECTION ===\n" + befund,
+        "=== DOCUMENT HEAD ===\n" + head,
+        "=== DOCUMENT MIDDLE ===\n" + middle,
+        "=== DOCUMENT TAIL ===\n" + tail,
+    ]
+    return "\n\n".join(parts)
 
 
 def extract_radiotherapy_events_from_text(text: str) -> List[Dict[str, Any]]:
@@ -1797,5 +1826,64 @@ def classify_and_extract_from_text(text: str) -> Dict[str, Any]:
 
     extractor = extractor_map.get(doc_type, extract_radiology_events_from_text)
     events = extractor(text)
+
+    # Fallback: if the chosen extractor returns no/weak payload, try all extractors once
+    # and keep the result with the strongest signal.
+    def _event_score(items: List[Dict[str, Any]]) -> int:
+        score = 0
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            # Count only non-empty fields; this prefers richer extraction payloads.
+            score += sum(1 for v in it.values() if v not in (None, "", [], {}))
+        return score
+
+    def _is_weak_payload(items: List[Dict[str, Any]]) -> bool:
+        if not items:
+            return True
+        total_score = _event_score(items)
+        # Very sparse extraction is often a wrong-doc-type signal.
+        if total_score <= 2:
+            return True
+        # Typical weak case: one "comments-only" event from a wrong doc_type.
+        for it in items:
+            if not isinstance(it, dict):
+                return True
+            non_empty_keys = {k for k, v in it.items() if v not in (None, "", [], {})}
+            if not non_empty_keys:
+                continue
+            if non_empty_keys == {"comments"}:
+                continue
+            # Found at least one meaningful event with more than comments.
+            return False
+        return True
+
+    if _is_weak_payload(events):
+        best_type = doc_type
+        best_events = events
+        best_score = _event_score(events)
+
+        for t, ex in extractor_map.items():
+            if t == doc_type:
+                continue
+            try:
+                candidate = ex(text)
+            except Exception:
+                logger.exception("Fallback-Extraktion fehlgeschlagen für Typ '%s'", t)
+                continue
+            candidate_score = _event_score(candidate)
+            if candidate_score > best_score:
+                best_type = t
+                best_events = candidate
+                best_score = candidate_score
+
+        if best_type != doc_type:
+            logger.info(
+                "Classify+Extract fallback: '%s' -> '%s' (score=%d)",
+                doc_type,
+                best_type,
+                best_score,
+            )
+        return {"doc_type": best_type, "events": best_events}
 
     return {"doc_type": doc_type, "events": events}
