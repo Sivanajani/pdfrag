@@ -24,7 +24,7 @@ export const resources = {
       },
       uploadWizard: {
         dropTitle: "Drop PDFs here or choose files",
-        dropHint: "Max {{max}} files. Only PDF files are accepted.",
+        dropHint: "Max {{max}} files. Only PDF files are accepted",
         chooseFiles: "Choose files",
         selectedCount: "{{count}} file(s) selected",
         startWizard: "Start wizard ({{count}} files)",
