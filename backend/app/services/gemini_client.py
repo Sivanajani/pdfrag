@@ -1753,6 +1753,28 @@ BEISPIELE:
     return data
 
 
+def ocr_pdf_with_gemini(pdf_path) -> str:
+    """Extrahiert Text aus einem eingescannten PDF via Gemini Vision (Files API)."""
+    if not GOOGLE_API_KEY:
+        raise RuntimeError("GOOGLE_API_KEY ist nicht gesetzt.")
+    uploaded_file = genai.upload_file(path=str(pdf_path), mime_type="application/pdf")
+    try:
+        model = _get_model()
+        response = model.generate_content([
+            uploaded_file,
+            "Extrahiere den gesamten Text aus diesem PDF-Dokument. "
+            "Gib NUR den rohen extrahierten Text zurück. "
+            "Keine Einleitung, keine Erklärung, kein Markdown, keine Seitentrenner. "
+            "Beginne direkt mit dem ersten Wort des Dokuments.",
+        ])
+        return response.text or ""
+    finally:
+        try:
+            genai.delete_file(uploaded_file.name)
+        except Exception:
+            pass
+
+
 def classify_and_extract_from_text(text: str) -> Dict[str, Any]:
     """
     Kombiniert Klassifikation und Extraktion in einem Backend-Call.

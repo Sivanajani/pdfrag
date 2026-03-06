@@ -2,14 +2,18 @@ from pathlib import Path
 from typing import Optional, Iterable
 from pypdf import PdfReader
 
+# If extracted text averages fewer than this many chars per page, treat as scanned PDF
+_OCR_THRESHOLD_PER_PAGE = 50
+
+
 def read_pdf_text(pdf_path: Path, pages: Optional[Iterable[int]] = None, max_chars: Optional[int] = None) -> str:
     """
-    Sehr einfache Extraktion für digitale PDFs.
+    Extrahiert Text aus PDFs. Fällt automatisch auf Gemini OCR zurück bei eingescannten PDFs.
     - pages: z.B. [0,1,2] (0-basiert). None = alle Seiten.
     - max_chars: hartes Limit für Rückgabetext (Performance/Netzwerk).
     """
     r = PdfReader(str(pdf_path))
-    page_indexes = pages if pages is not None else range(len(r.pages))
+    page_indexes = list(pages if pages is not None else range(len(r.pages)))
     chunks = []
     for i in page_indexes:
         if i < 0 or i >= len(r.pages):
@@ -23,4 +27,12 @@ def read_pdf_text(pdf_path: Path, pages: Optional[Iterable[int]] = None, max_cha
     out = "\n".join(chunks)
     if max_chars is not None and len(out) > max_chars:
         out = out[:max_chars]
+
+    # Fallback auf Gemini OCR bei eingescannten PDFs (kein/kaum extrahierbarer Text)
+    if len(out.strip()) < _OCR_THRESHOLD_PER_PAGE * len(page_indexes):
+        from app.services.gemini_client import ocr_pdf_with_gemini
+        out = ocr_pdf_with_gemini(pdf_path)
+        if max_chars is not None and len(out) > max_chars:
+            out = out[:max_chars]
+
     return out

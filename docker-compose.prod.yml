@@ -56,6 +56,9 @@ services:
       - VIRTUAL_PORT=80
       - LETSENCRYPT_HOST=shaperag.com,www.shaperag.com
       - LETSENCRYPT_EMAIL=sivanajani@swissntech.ch
+      - CLIENT_MAX_BODY_SIZE=10g
+      - PROXY_READ_TIMEOUT=600
+      - PROXY_SEND_TIMEOUT=600
     restart: unless-stopped
 
 volumes:
