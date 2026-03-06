@@ -38,7 +38,7 @@ router = APIRouter(tags=["llm"])
 class _DocOrTextRequest(BaseModel):
     doc_id: Optional[str] = None
     text: Optional[str] = None
-    max_chars: int = 20000
+    max_chars: Optional[int] = None
 
 
 def _resolve_text(payload: _DocOrTextRequest) -> str:
