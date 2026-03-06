@@ -1,20 +1,27 @@
 import os
 import json
 from typing import List, Dict, Any
+import logging
 
 import google.generativeai as genai
 from app.services.locale_loader import build_constraint_guide
 
+logger = logging.getLogger(__name__)
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-if not GOOGLE_API_KEY:
-    raise RuntimeError(
-        "GOOGLE_API_KEY ist nicht gesetzt. Bitte als Environment-Variable konfigurieren."
-    )
-
-genai.configure(api_key=GOOGLE_API_KEY)
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    logger.warning("GOOGLE_API_KEY ist nicht gesetzt. LLM-Endpunkte sind nicht verfuegbar.")
 
 MODEL_NAME = "gemini-flash-latest"
+
+
+def _get_model() -> genai.GenerativeModel:
+    if not GOOGLE_API_KEY:
+        raise RuntimeError("GOOGLE_API_KEY ist nicht gesetzt. Bitte als Environment-Variable konfigurieren.")
+    return genai.GenerativeModel(MODEL_NAME)
 
 
 def extract_befund_section(text: str) -> str:
@@ -97,7 +104,7 @@ def extract_structured_data_from_text(text: str) -> List[Dict[str, Any]]:
     if not text or text.strip() == "":
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     system_instructions = (
         "Du bist ein medizinischer Extraktions-Assistent. "
@@ -182,7 +189,7 @@ def extract_radiology_events_from_text(text: str) -> List[Dict[str, Any]]:
     if not text or text.strip() == "":
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     # Nur den Befund-Abschnitt extrahieren
     text = extract_befund_section(text)
@@ -393,7 +400,7 @@ def classify_document_type(text: str) -> str:
     if not text or text.strip() == "":
         return "radiology"  # Default fallback
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     prompt = """Du bist ein medizinischer Dokumenten-Klassifikations-Assistent.
 
@@ -464,7 +471,7 @@ def extract_radiotherapy_events_from_text(text: str) -> List[Dict[str, Any]]:
     if not text or text.strip() == "":
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     # Nur den Befund-Abschnitt extrahieren
     text = extract_befund_section(text)
@@ -643,7 +650,7 @@ def extract_pathology_events_from_text(text: str) -> List[Dict[str, Any]]:
     if not text or text.strip() == "":
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     # Nur den Befund-Abschnitt extrahieren
     text = extract_befund_section(text)
@@ -963,7 +970,7 @@ def extract_surgery_events_from_text(text: str) -> List[Dict[str, Any]]:
     if not text or text.strip() == "":
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     # Nur den Befund-Abschnitt extrahieren
     text = extract_befund_section(text)
@@ -1280,7 +1287,7 @@ def extract_sarcoma_board_events_from_text(text: str) -> List[Dict[str, Any]]:
     if not text or text.strip() == "":
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     # Nur den Befund-Abschnitt extrahieren
     text = extract_befund_section(text)
@@ -1461,7 +1468,7 @@ def extract_systemic_therapy_events_from_text(text: str) -> List[Dict[str, Any]]
     if not text or text.strip() == "":
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = _get_model()
 
     # Nur den Befund-Abschnitt extrahieren
     text = extract_befund_section(text)

@@ -18,18 +18,18 @@ from typing import Dict, List, Optional
 
 import yaml
 
-def _find_db_dir() -> Path:
+def _find_db_dir() -> Optional[Path]:
     """Search upward from this file for a db/ dir containing locales/ and constraints/."""
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "db"
         if candidate.is_dir() and (candidate / "locales").is_dir():
             return candidate
-    raise RuntimeError("db/ directory not found — add ./db:/app/db:ro volume mount")
+    return None
 
 
 _DB_DIR = _find_db_dir()
-_LOCALE_DIR = _DB_DIR / "locales"
-_CONSTRAINT_DIR = _DB_DIR / "constraints"
+_LOCALE_DIR = _DB_DIR / "locales" if _DB_DIR else None
+_CONSTRAINT_DIR = _DB_DIR / "constraints" if _DB_DIR else None
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +52,8 @@ def _flatten_yaml(node, result: Dict[str, str]) -> None:
 @lru_cache(maxsize=1)
 def load_enum_labels() -> Dict[str, str]:
     """Return a flat {code: label} dict from croms.enums.en.yml."""
+    if _LOCALE_DIR is None:
+        return {}
     path = _LOCALE_DIR / "croms.enums.en.yml"
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -207,3 +209,5 @@ def build_constraint_guide(specs: List[tuple]) -> str:
         + body
         + "\n────────────────────────────────────────────────────────"
     )
+    if _CONSTRAINT_DIR is None:
+        return []

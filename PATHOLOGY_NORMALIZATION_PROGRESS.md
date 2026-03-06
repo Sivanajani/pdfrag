@@ -127,3 +127,39 @@ Beispiel: `who_diagnosis` (~200 Codes aus who_diagnosis.yml + croms.enums.en.yml
 - `biological_barrier_to_closest_margin`: Unmappbarer Text → `comment`-Feld, Hauptfeld → `None`
 - `who_diagnosis`: YAML-Loader mit `parents[3]` Pfad-Auflösung relativ zum Schema-File
 - `proliferation_index`: Regex sucht Prozentzeichen (`\d+%`) um Ki-67-Marker-Nummer zu vermeiden
+
+---
+
+## Session Update (2026-03-05)
+
+### Surgery-Normalisierung (ergänzend zur Pathology-Arbeit)
+
+Die gleiche Ziel-Logik wurde für Surgery konkretisiert:
+**Berichtstext (Label) → Locale-Lookup → DB-Code**.
+
+Betroffene Felder in `backend/app/schemas/surgeries.py`:
+- `resection`
+- `reconstruction`
+- `amputation`
+- `hemipelvectomy`
+
+Verwendete Quellen:
+- Codes:  
+  `db/constraints/surgery/resection.yml`  
+  `db/constraints/surgery/reconstruction.yml`  
+  `db/constraints/surgery/amputation.yml`  
+  `db/constraints/surgery/hemipelvectomy.yml`
+- Label-Texte:
+  `db/locales/croms.enums.en.yml` (resection/reconstruction/amputation)
+  `db/locales/croms.enums.hemipelvectomy.en.yml` (hemipelvectomy)
+
+Umgesetzte Regeln:
+- Wenn Rohtext ein gültiger DB-Code ist -> Code behalten.
+- Sonst Label normalisieren und gegen Locale-Label mappen -> zugehörigen DB-Code ausgeben.
+- Sonst Synonym-Logik (bestehende Heuristiken) verwenden.
+- Wenn weiterhin kein Treffer -> raw_text erhalten.
+- Nur wenn leer/null -> `None`.
+
+Wichtige Korrektur:
+- `hemipelvectomy` ist jetzt strikt: kein generisches `e_*`-Accept mehr.
+- Es werden nur Werte akzeptiert, die über erlaubte Codes/Label-Mapping/Synonyme auf gültige Codes führen.
