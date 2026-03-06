@@ -200,7 +200,15 @@ WICHTIG:
    - MEHRERE Läsionen in VERSCHIEDENEN Regionen → MEHRERE Events
    - Beispiel: Primärtumor Oberschenkel + Lungenmetastasen → 2 Events
 
-4. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+4. SPRACHREGEL (WICHTIG): Begriffe können in beliebiger Sprache kommen (DE/EN/FR/IT/etc.).
+   Normalisiere ALLE medizinisch-semantischen Begriffe zuerst auf ENGLISCH
+   und mappe DANACH auf die geforderten DB-Codes.
+   Beispiele:
+   - "Montag", "monday", "lundi", "lunedi" -> monday
+   - "Übelkeit", "nausea", "nausée" -> nausea
+   - "palliativ", "palliative", "palliatif" -> palliative
+
+5. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
 
     json_spec = """
 Gib ein JSON-ARRAY zurück. Jedes Element ist ein vollständiges RadiologyEvent:
@@ -457,7 +465,15 @@ WICHTIG:
 
 2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
 
-3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+3. SPRACHREGEL (WICHTIG): Begriffe können in beliebiger Sprache kommen (DE/EN/FR/IT/etc.).
+   Normalisiere ALLE medizinisch-semantischen Begriffe zuerst auf ENGLISCH
+   und mappe DANACH auf die geforderten DB-Codes.
+   Beispiele:
+   - "Montag", "monday", "lundi", "lunedi" -> monday
+   - "Übelkeit", "nausea", "nausée" -> nausea
+   - "palliativ", "palliative", "palliatif" -> palliative
+
+4. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
 
     json_spec = """
 Gib ein JSON-ARRAY zurück. Jedes Element ist ein RadiotherapyEvent:
@@ -618,7 +634,15 @@ WICHTIG:
 
 2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
 
-3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+3. SPRACHREGEL (WICHTIG): Begriffe können in beliebiger Sprache kommen (DE/EN/FR/IT/etc.).
+   Normalisiere ALLE medizinisch-semantischen Begriffe zuerst auf ENGLISCH
+   und mappe DANACH auf die geforderten DB-Codes.
+   Beispiele:
+   - "Montag", "monday", "lundi", "lunedi" -> monday
+   - "Übelkeit", "nausea", "nausée" -> nausea
+   - "palliativ", "palliative", "palliatif" -> palliative
+
+4. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
 
     json_spec = """
 Gib ein JSON-ARRAY zurück. Jedes Element ist ein PathologyEvent:
@@ -918,7 +942,15 @@ WICHTIG:
 
 2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
 
-3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+3. SPRACHREGEL (WICHTIG): Begriffe können in beliebiger Sprache kommen (DE/EN/FR/IT/etc.).
+   Normalisiere ALLE medizinisch-semantischen Begriffe zuerst auf ENGLISCH
+   und mappe DANACH auf die geforderten DB-Codes.
+   Beispiele:
+   - "Montag", "monday", "lundi", "lunedi" -> monday
+   - "Übelkeit", "nausea", "nausée" -> nausea
+   - "palliativ", "palliative", "palliatif" -> palliative
+
+4. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
 
     json_spec = """
 Gib ein JSON-ARRAY zurück. Jedes Element ist ein SurgeryEvent:
@@ -934,85 +966,233 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein SurgeryEvent:
     "surgery_date": "YYYY-MM-DD",
 
     // Operations-Details
-    "indication": "Preoperative biopsy" | "Definitive surgery" | "Curative resection" | "Palliative surgery" | "Revision surgery" | "Debulking" | "Metastasectomy" | "Other" | null,
+    // Erlaubte indication-Codes (DB-Constraint-Werte):
+    "indication": "first_surgery_for_this_reason" | "first_surgery_after_whoops" | "pathological_fracture" |
+                  "first_revision_surgery" | "second_or_more_revision_surgery" |
+                  "first_surgery_for_local_recurrence" | "second_or_more_surgery_for_local_recurrence" |
+                  "first_surgery_for_metastasis" | "second_or_more_surgery_for_metastasis" |
+                  "other_reason" | null,
     "indication_comment": string | null,
 
-    "surgery_side": "Left" | "Right" | "Bilateral" | "Midline" | "Not applicable" | null,
-    "anatomic_region": "Head and neck" | "Trunk" | "Chest wall" | "Abdomen" | "Pelvis" | "Upper extremity" | "Lower extremity" | "Retroperitoneum" | "Other" | null,
+    // Erlaubte surgery_side-Codes: right | left | midline | null
+    "surgery_side": "right" | "left" | "midline" | null,
+
+    // Freitext (kein Constraint)
+    "anatomic_region": string | null,
 
     // Tumor
     "greatest_surgical_tumor_dimension_in_mm": number | null,
     "had_tumor_spillage": boolean | null,
 
-    // Resektion - ARRAY!
-    "resection": [
-      "Wide excision" | "Marginal excision" | "Intralesional excision" |
-      "Compartmental resection" | "En-bloc resection" | "Limb-sparing surgery"
-    ],
+    // Resektion - ARRAY mit DB-Codes aus db/constraints/surgery/resection.yml
+    // Soft tissue: res_a_1_simple, res_a_2_muscle_resection, res_a_3_vessel_dissection,
+    //   res_a_4_nerve_dissection, res_a_5_periost_resection, res_a_6_bone_resection,
+    //   res_a_7_vessel_resection, res_a_8_nerve_resection, res_a_10_tendon_resection,
+    //   res_a_11_ligament_resection, res_a_13_other_sts_resection
+    // Bone: res_b_1_simple_curettage, res_b_2_hemi_cortex_resection,
+    //   res_b_3_complete_whole_bone_res_joint_sparing,
+    //   res_b_4_complete_whole_bone_res_transarticular_resection,
+    //   res_b_5_complete_whole_bone_res_extraarticular_joint_resection,
+    //   res_b_6_with_3d_patient_specific_cutting_guides,
+    //   res_b_8_radiofrequency_ablation_rfa_cryotherapy_mr_hifu,
+    //   res_b_9_resection_replantation_upper_extremity,
+    //   res_b_10_rotationplasty_lower_extremity, res_b_86_other_bone_resection
+    // Chest: res_c_1_chest_wall_resection, res_c_2_wedge_resection, res_c_3_segmental_resection,
+    //   res_c_4_lobectomy, res_c_5_bilobectomy_pneumonectomy, res_c_10_other_chest_lung_resection
+    // Abdomen: res_d_1_abdominal_wall_resection, res_d_3_kidney, res_d_6_bladder,
+    //   res_d_7_colon_rectum, res_d_15_other_abdominal_resection
+    // Revision: res_e_1_debridement, res_e_2_inlay_change, res_e_3_partial_removal_of_prosthesis,
+    //   res_e_4_complete_removal_of_prosthesis, res_e_5_infection, res_e_11_other
+    // Oder: "not_applicable"
+    "resection": string[],
 
-    "resected_tumor_margin": "R0 (complete resection, negative margins)" | "R1 (microscopic residual tumor)" | "R2 (macroscopic residual tumor)" | "Unknown" | null,
+    // Resektionsrand
+    "resected_tumor_margin": "r0" | "r1" | "r2" | "unknown" | null,
 
-    // Rekonstruktion
-    "reconstruction": "None" | "Primary closure" | "Skin graft" | "Local flap" | "Free flap" | "Mesh" | "Prosthesis" | "Bone graft" | "Endoprosthesis" | "Other" | null,
+    // Rekonstruktion - DB-Code aus db/constraints/surgery/reconstruction.yml
+    // Einfach: not_applicable, skin_mesh_graft, chest_wall_reconstruction, arthrodesis
+    // Muskel-Lappen: rectus_abdominis, gastrocnemius, latissimus_dorsi, gracilis, sartorius, other_muscle_flap
+    // Freie Lappen: latissimus_dorsi_free, gracilis_free, other_free_tissue_transfer, alt_free
+    // Gestielte Lappen: alt_pedicled, other_perforator_flap_pedicled
+    // Knochen: autograft, allograft_chips, bulk_allograft, modular_tumor_prosthesis,
+    //   conventional_prosthesis, custom_made_prosthesis, growing_prosthesis,
+    //   cementation, orif, other_bone_reconstruction, goretex_mesh_trevira
+    // Gefäß: artery_complete, vein_complete, other_vessel_reconstruction
+    // Nerv: nerve_reconstruction
+    "reconstruction": string | null,
 
-    // Amputation
-    "amputation": "None" | "Above-knee amputation" | "Below-knee amputation" | "Above-elbow amputation" | "Below-elbow amputation" | "Hip disarticulation" | "Shoulder disarticulation" | "Hemipelvectomy" | "Other" | null,
+    // Amputation - DB-Code aus db/constraints/surgery/amputation.yml
+    // Keine Amputation: not_determined
+    // Obere Extremität:
+    //   resh_010=Finger/Ray, resh_020=Trans-metacarpal, resh_030=Wrist-disaric.,
+    //   resh_040=Trans-radial(Unterarm/below-elbow), resh_050=Elbow-disaric.,
+    //   resh_060=Trans-humeral(Oberarm/above-elbow), resh_070=Shoulder-disaric., resh_099=Other
+    // Forequarter: resh_080=ohne Thorax, resh_081=mit Thorax
+    // Untere Extremität:
+    //   resh_110=Toe/Ray, resh_120=Trans-metatarsal, resh_130=Midfoot,
+    //   resh_140=Ankle-disaric.(Syme/Boyd), resh_150=Transtibial(BKA/below-knee),
+    //   resh_160=Knee-disaric., resh_170=Trans-femoral(AKA/above-knee),
+    //   resh_180=Hip-disaric., resh_199=Other
+    // Wirbelsäule/Becken: resg_080=External hemipelvectomy (hind-quarter)
+    // Externe Hemipelvektomie Typ V: ext_ta, ext_ti, ext_ths, ext_ths_diss, ext_hc, ext_bi, ext_visc
+    "amputation": string | null,
 
-    "hemipelvectomy": string[] | [],  // Array für Details
+    // Hemipelvektomie - ARRAY mit exakten DB-Codes. Code→Beschreibung:
+    //
+    // Typ I – Ilium:
+    //   e_i_il_ls_rp  = Type I, extraarticular, ilium, lateral to SIJ, ring preserved
+    //   e_i_il_ls_rd  = Type I, extraarticular, ilium, lateral to SIJ, ring disrupted
+    //   e_i_is_ms     = Type I–IV, extraarticular, ilium-sacrum, medial to SIJ
+    //   e_i_is_f      = Type I–IV, extraarticular, ilium-sacrum, through foramina
+    //   e_i_is_mf     = Type I–IV, extraarticular, ilium-sacrum, medial to foramina/midline
+    //   e_ix_il_ls    = Type I, transarticular, ilium, lateral to SIJ
+    //   e_ix_is_ms    = Type I–IV, transarticular, ilium-sacrum, medial to SIJ
+    //   e_ix_is_f     = Type I–IV, transarticular, ilium-sacrum, through foramina
+    //   e_ix_is_mf    = Type I–IV, transarticular, ilium-sacrum, medial to foramina/midline
+    //
+    // Typ II – Acetabulum:
+    //   e_iip_a_sy = partial, acetabulum, superior Y   e_iip_p_my = partial, pubis, medial Y
+    //   e_iip_i_py = partial, ischium, posterior Y     e_iix_pi_c = complete, transarticular, pubis/ischium
+    //   e_ii_a_rd  = complete, extraarticular, ring disrupted
+    //   e_ii_a_rp  = complete, extraarticular, ring preserved
+    //
+    // Typ III – Pubis:
+    //   e_iii_p_sr = superior ramus only
+    //   e_iii_p_ir_rp = inferior ramus, tuber spared, ring preserved
+    //   e_iii_p_ir_rd = inferior ramus, tuber spared, ring disrupted
+    //   e_iii_p_irt = inferior ramus, tuber resected
+    //   e_iii_p_sir = superior + inferior ramus, tuber spared
+    //   e_iii_p_sirt = superior + inferior ramus, tuber resected
+    //   e_iii_p_bsr = bilateral superior ramus
+    //   e_iii_p_bsir = bilateral sup+inf rami, tuber spared
+    //   e_iii_p_bsirt = bilateral sup+inf rami, tuber resected
+    //
+    // Typ IV – Sacrum:
+    //   e_iv_s_ls_h = low sacrectomy (below S2), hemi-/unilateral
+    //   e_iv_s_ls_b = low sacrectomy (below S2), bilateral
+    //   e_iv_s_hs_u = high sacrectomy (S1+S2), unilateral, SIJ preserved
+    //   e_iv_s_hs_b = high sacrectomy (S1+S2), bilateral, SIJ preserved
+    //   e_iv_s_hs_l = high sacrectomy, lateral to SIJ through ilium, no LP-diss
+    //   e_iv_s_hs_ld = high sacrectomy, lateral to SIJ, with LP-dissociation
+    //   e_iv_s_hslp_p = high sacrectomy + partial lumbar resection
+    //   e_iv_s_hslp_c = high sacrectomy + cL5 and above, with LP-dissociation
+    //
+    // Typ I+II: e_ix_ii_ls = partial hip transarticular  | e_i_ii_ls = complete hip extraarticular
+    //
+    // Typ II+III (partial hip transarticular):
+    //   e_iix_iii_sr / e_iix_iii_ist / e_iix_iii_irt / e_iix_iii_sirt / e_iix_iii_bsr / e_iix_iii_bsir / e_iix_iii_bsirt
+    // Typ II+III (complete hip extraarticular):
+    //   e_ii_iii_sr / e_ii_iii_ist / e_ii_iii_irt / e_ii_iii_sirt / e_ii_iii_bsr / e_ii_iii_bsir / e_ii_iii_bsirt
+    //
+    // Typ I+II+III: e_ix_iix_iii_sr / _sirt / _bsirt / ... (partial hip, lateral to SIJ)
+    //
+    // Typ III+IV (Ilium-Sacrum, Spinopelvic-Varianten):
+    //   e_iii_iv_l_lsi_m_sa_s_nd  = sacral ala, no spinopelvic dissociation
+    //   e_iii_iv_l_lsi_m_sa_s_ud  = sacral ala, unilateral spinopelvic dissociation
+    //   e_iii_iv_l_lsi_m_sa_s_bd  = sacral ala, bilateral spinopelvic dissociation
+    //   e_iii_iv_l_lsi_m_f_s_nd   = through foramina S1/S2, no dissociation
+    //   e_iii_iv_l_lsi_m_f_s_ud   = through foramina, unilateral dissociation
+    //   e_iii_iv_l_lsi_m_bm_s_nd  = between foramina and midline, no dissociation
+    //   e_iii_iv_l_lsi_m_mc_s_nd  = midline to contralateral foramina, no dissociation
+    //   e_iii_iv_l_lsi_m_cf_s_nd  = contralateral foramina, no dissociation
+    //   (jeweils auch _ud/_bd/_lv für uni-/bilateral/mit Lumbalwirbel)
+    //
+    // Oder: "not_applicable"
+    "hemipelvectomy": string[],
 
-    // Revisionen
+    // Revisionen (Freitext)
     "first_revision_details": string | null,
     "second_revision_details": string | null,
 
-    // Beteiligte Disziplinen - ARRAY!
-    "participated_disciplines": [
-      "Orthopedic surgery" | "General surgery" | "Plastic surgery" |
-      "Vascular surgery" | "Thoracic surgery" | "Neurosurgery" |
-      "Gynecology" | "Urology" | "Other"
-    ],
+    // Beteiligte Disziplinen - ARRAY mit DB-Codes:
+    // reconstructive_surgery, chest_surgery, vascular_surgery, visceral_surgery,
+    // orthopedics, sarcoma_surgery, trauma_surgery, hand_surgery, neurosurgery,
+    // spine_surgery, interventional_radiology, urology, other
+    "participated_disciplines": string[],
     "participated_disciplines_comment": string | null
   }
 ]
 
 WICHTIGE REGELN:
 
-1. **Datum**: surgery_date ist PFLICHTFELD!
-   - "OP am 15.01.2024" → surgery_date: "2024-01-15"
+1. **Datum**: surgery_date ist PFLICHTFELD (Format YYYY-MM-DD)
+   - "OP am 15.01.2024" → "2024-01-15"
 
-2. **Indikation**:
-   - "Whoops-Exzision" oder "unbeabsichtigt" → "Preoperative biopsy"
-   - "kurative Resektion" → "Curative resection"
-   - "palliativ" → "Palliative surgery"
+2. **Indikation** (DB-Codes verwenden!):
+   - "Whoops-Exzision" / "unbeabsichtigt" → "first_surgery_after_whoops"
+   - "kurative Resektion" / "definitive OP" / "Primäreingriff" → "first_surgery_for_this_reason"
+   - "palliativ" / "Debulking" → "other_reason"
+   - "Lokalrezidiv" (erste OP) → "first_surgery_for_local_recurrence"
+   - "Revision" (erste) → "first_revision_surgery"
+   - "Metastasenchirurgie" → "first_surgery_for_metastasis"
+   - "pathologische Fraktur" → "pathological_fracture"
 
-3. **Anatomische Region**:
-   - "Oberschenkel" → "Lower extremity"
-   - "Unterarm" → "Upper extremity"
-   - "Becken" → "Pelvis"
+3. **Seite**:
+   - "rechts" → "right", "links" → "left", "median" / "mittig" → "midline"
 
-4. **Resektionstyp** (ARRAY!):
-   - "weite Exzision" → ["Wide excision"]
-   - "kompartmentelle Resektion" → ["Compartmental resection"]
-   - Mehrere möglich: ["Wide excision", "Compartmental resection"]
+4. **Anatomische Region**: Freitext, z.B. "Oberschenkel", "Becken", "Unterarm"
 
-5. **Resektionsrand**:
-   - "R0" → "R0 (complete resection, negative margins)"
-   - "R1" → "R1 (microscopic residual tumor)"
-   - "R2" → "R2 (macroscopic residual tumor)"
+5. **Resektionstyp** (DB-Codes, ARRAY!):
+   - "weite Exzision" / "Weichteilresektion" → ["res_a_1_simple"]
+   - "Muskelresektion" → ["res_a_2_muscle_resection"]
+   - "Knochenresektion, gelenkerhaltend" → ["res_b_3_complete_whole_bone_res_joint_sparing"]
+   - "extraartikuläre Resektion" → ["res_b_5_complete_whole_bone_res_extraarticular_joint_resection"]
+   - "Kürettage" → ["res_b_1_simple_curettage"]
+   - "Rotationsplastik" → ["res_b_10_rotationplasty_lower_extremity"]
+   - Mehrere möglich: ["res_a_1_simple", "res_a_2_muscle_resection"]
 
-6. **Rekonstruktion**:
-   - "primärer Wundverschluss" → "Primary closure"
-   - "Hauttransplantat" → "Skin graft"
-   - "freier Lappen" → "Free flap"
-   - "Mesh" → "Mesh"
+6. **Resektionsrand** (lowercase DB-Codes):
+   - "R0" → "r0", "R1" → "r1", "R2" → "r2"
 
-7. **Beteiligte Disziplinen** (ARRAY!):
-   - "Plastische Chirurgie" → ["Plastic surgery"]
-   - "Gefäßchirurgie" → ["Vascular surgery"]
-   - Mehrere: ["Orthopedic surgery", "Plastic surgery"]
+7. **Rekonstruktion** (DB-Code):
+   - "Hauttransplantat" / "Spalthauttransplantat" → "skin_mesh_graft"
+   - "freier Lappen" → "other_free_tissue_transfer"
+   - "gestielter Lappen" → "other_perforator_flap_pedicled"
+   - "Tumorprothese" / "modulare Prothese" → "modular_tumor_prosthesis"
+   - "Allograft" → "allograft_chips"
+   - "Autograft" / "Knochentransplantat" → "autograft"
+   - kein Eingriff / Primärverschluss → "not_applicable"
+
+8. **Amputation** (DB-Code):
+   - keine Amputation → "not_determined"
+   - "Oberschenkelamputation" / "above-knee" → "resh_170"
+   - "Unterschenkelamputation" / "below-knee" / "BKA" → "resh_150"
+   - "Oberarmamputation" / "above-elbow" / "trans-humeral" → "resh_060"
+   - "Unterarmamputation" / "below-elbow" / "trans-radial" → "resh_040"
+   - "Hüftexartikulation" / "hip disarticulation" → "resh_180"
+   - "Schulterexartikulation" / "shoulder disarticulation" → "resh_070"
+   - "Knieexartikulation" / "knee disarticulation" → "resh_160"
+   - "Hemipelvektomie" (generisch/extern) → "resg_080"
+   - Spezifische Typ-V Hemipelvektomie → ext_ta / ext_ti / ext_ths / ext_ths_diss / ext_hc / ext_bi / ext_visc
+
+9. **Beteiligte Disziplinen** (DB-Codes, ARRAY!):
+   - "Plastische Chirurgie" → ["reconstructive_surgery"]
+   - "Gefäßchirurgie" → ["vascular_surgery"]
+   - "Orthopädie" → ["orthopedics"]
+   - "Allgemeinchirurgie" → ["visceral_surgery"]
+   - "Thoraxchirurgie" → ["chest_surgery"]
+   - Mehrere: ["orthopedics", "reconstructive_surgery"]
+
+10. **Hemipelvektomie** (DB-Codes, ARRAY!):
+    WICHTIG: Nutze die Code→Beschreibung-Tabelle oben um den exakten Code zu finden.
+    - "Type I, extraarticular, lateral to SIJ, ring preserved" → ["e_i_il_ls_rp"]
+    - "Type I, extraarticular, lateral to SIJ, ring disrupted" → ["e_i_il_ls_rd"]
+    - "Type I, extraarticular, ilium-sacrum, medial to SIJ" → ["e_i_is_ms"]
+    - "Type I, transarticular, lateral to SIJ" → ["e_ix_il_ls"]
+    - "Type II, complete, extraarticular, ring preserved" → ["e_ii_a_rp"]
+    - "Type III, superior ramus only" → ["e_iii_p_sr"]
+    - "Type III, superior + inferior, tuber resected" → ["e_iii_p_sirt"]
+    - "low sacrectomy, bilateral" → ["e_iv_s_ls_b"]
+    - "high sacrectomy, unilateral, SIJ preserved" → ["e_iv_s_hs_u"]
+    - Nicht zutreffend → ["not_applicable"]
 
 BEISPIELE:
 - "Tumorgröße 8 cm" → greatest_surgical_tumor_dimension_in_mm: 80
-- "linker Oberschenkel" → surgery_side: "Left", anatomic_region: "Lower extremity"
+- "linker Oberschenkel" → surgery_side: "left", anatomic_region: "Oberschenkel links"
+- "R0-Resektion" → resected_tumor_margin: "r0"
+- "Typ I, extraartikulär, Ilium, lateral zum ISG, Ring intakt" → hemipelvectomy: ["e_i_il_ls_rp"]
+- "Typ I, extraartikulär, Ilium, lateral zum ISG, Ring unterbrochen" → hemipelvectomy: ["e_i_il_ls_rd"]
+- "Hohe Sakrumresektion S1+S2, unilateral, ISG erhalten" → hemipelvectomy: ["e_iv_s_hs_u"]
 """
 
     prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nOperations-Berichtstext:\n{text}"
@@ -1064,7 +1244,15 @@ WICHTIG:
 
 2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
 
-3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+3. SPRACHREGEL (WICHTIG): Begriffe können in beliebiger Sprache kommen (DE/EN/FR/IT/etc.).
+   Normalisiere ALLE medizinisch-semantischen Begriffe zuerst auf ENGLISCH
+   und mappe DANACH auf die geforderten DB-Codes.
+   Beispiele:
+   - "Montag", "monday", "lundi", "lunedi" -> monday
+   - "Übelkeit", "nausea", "nausée" -> nausea
+   - "palliativ", "palliative", "palliatif" -> palliative
+
+4. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
 
     json_spec = """
 Gib ein JSON-ARRAY zurück. Jedes Element ist ein SarcomaBoardEvent:
@@ -1223,7 +1411,15 @@ WICHTIG:
 
 2. Klinische Angaben und andere Abschnitte wurden bereits entfernt.
 
-3. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
+3. SPRACHREGEL (WICHTIG): Begriffe können in beliebiger Sprache kommen (DE/EN/FR/IT/etc.).
+   Normalisiere ALLE medizinisch-semantischen Begriffe zuerst auf ENGLISCH
+   und mappe DANACH auf die geforderten DB-Codes.
+   Beispiele:
+   - "Montag", "monday", "lundi", "lunedi" -> monday
+   - "Übelkeit", "nausea", "nausée" -> nausea
+   - "palliativ", "palliative", "palliatif" -> palliative
+
+4. Gib NUR valides JSON zurück, kein Markdown, keine Erklärungen."""
 
     json_spec = """
 Gib ein JSON-ARRAY zurück. Jedes Element ist ein SystemicTherapyEvent:
@@ -1236,34 +1432,53 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein SystemicTherapyEvent:
     "responsible_oncologist_id": number | null,
 
     // Therapiegrund
-    "reason": "Neoadjuvant" | "Adjuvant" | "Palliative (first line)" | "Palliative (further line)" | "Curative" | "Maintenance" | "Other" | null,
+    // Erlaubte reason-Werte (DB-Codes):
+    //   curative_intent_neoadjuvant | curative_intent_adjuvant |
+    //   trial_mandated_systemic_therapy | oligometastatic_program_partner |
+    //   conversion_downstaging | consolidation | additive_maintenance |
+    //   symptom_control | palliative | other
+    "reason": "curative_intent_neoadjuvant" | "curative_intent_adjuvant" | "trial_mandated_systemic_therapy" | "oligometastatic_program_partner" | "conversion_downstaging" | "consolidation" | "additive_maintenance" | "symptom_control" | "palliative" | "other" | null,
     "reason_comment": string | null,
     "treatment_line": 1 | 2 | 3 | 4 | 5 | null,  // 1=first line, 5=fifth or more
 
     // Protokolle
-    "bone_protocol": "MAP (Methotrexate, Adriamycin, Cisplatin)" | "MAPIE (MAP + Ifosfamide, Etoposide)" | "EURAMOS" | "IE (Ifosfamide, Etoposide)" | "VAI (Vincristine, Adriamycin, Ifosfamide)" | "Other" | "None" | null,
+    // bone_protocol Erlaubte Werte: euramos | euroboss | ewing2008 |
+    //   euroewing_2012_vide | euroewing_2012_vdc_ie | cws | other
+    "bone_protocol": "euramos" | "euroboss" | "ewing2008" | "euroewing_2012_vide" | "euroewing_2012_vdc_ie" | "cws" | "other" | null,
     "bone_protocol_comment": string | null,
 
-    "softtissue_protocol": "AI (Adriamycin, Ifosfamide)" | "MAID (Mesna, Adriamycin, Ifosfamide, Dacarbazine)" | "Gemcitabine/Docetaxel" | "Trabectedin" | "Pazopanib" | "Eribulin" | "Ifosfamide monotherapy" | "Doxorubicin monotherapy" | "Other" | "None" | null,
+    // softtissue_protocol Erlaubte Werte: cws | pazoqol | napage | other
+    "softtissue_protocol": "cws" | "pazoqol" | "napage" | "other" | null,
     "softtissue_protocol_comment": string | null,
 
     // Zeitraum
     "cycle_start_date": "YYYY-MM-DD" | null,
     "cycle_end_date": "YYYY-MM-DD" | null,
-    "cycles_executed": string | null,  // z.B. "6/6" oder "4/6"
+    // cycles_executed Erlaubte Werte: one | two | three | four | five | six | seven | eight | nine | until_progression
+    // Wenn Zykluszahl nicht in 1-9 passt oder unbekannt: raw string
+    "cycles_executed": "one" | "two" | "three" | "four" | "five" | "six" | "seven" | "eight" | "nine" | "until_progression" | string | null,
 
     // Begleittherapie
     "was_rct_concomittant": boolean,  // Gleichzeitige Radiochemotherapie
-    "hyperthermia_status": "None" | "Planned" | "Ongoing" | "Completed" | null,
+    // hyperthermia_status Erlaubte Werte: no | yes_chemotherapy_hyperthermia
+    "hyperthermia_status": "no" | "yes_chemotherapy_hyperthermia" | null,
 
     // Studienteilnahme
-    "clinical_trial_inclusion": "Yes" | "No" | "Unknown" | null,
+    // clinical_trial_inclusion Erlaubte Werte: no | yes_ssn_outcome_prediction | yes_other
+    "clinical_trial_inclusion": "no" | "yes_ssn_outcome_prediction" | "yes_other" | null,
 
     // Abbruch
-    "discontinuation_reason": "Completion of planned therapy" | "Progressive disease" | "Toxicity" | "Patient refusal" | "Death" | "Surgery planned" | "Other" | null,
+    // discontinuation_reason Erlaubte Werte:
+    //   completed | progressive_disease_radiologic | progressive_disease_clinical |
+    //   toxicity | maximum_safe_cumulative_dose | clinical_deterioration_non_pd |
+    //   intercurrent_illness | patient_decision | definitive_local_therapy |
+    //   switch_to_next_line_or_maintenance | treatment_related_mortality |
+    //   lost_to_follow_up_or_administrative | death_tumor_related | death_non_tumor_related
+    "discontinuation_reason": "completed" | "progressive_disease_radiologic" | "progressive_disease_clinical" | "toxicity" | "maximum_safe_cumulative_dose" | "clinical_deterioration_non_pd" | "intercurrent_illness" | "patient_decision" | "definitive_local_therapy" | "switch_to_next_line_or_maintenance" | "treatment_related_mortality" | "lost_to_follow_up_or_administrative" | "death_tumor_related" | "death_non_tumor_related" | null,
 
-    // Patient-Typ
-    "patient_type": "Pediatric" | "Adolescent/Young adult (AYA)" | "Adult" | null,
+    // Patient-Typ (ambulant/stationär)
+    // patient_type Erlaubte Werte: outpatient | inpatient
+    "patient_type": "outpatient" | "inpatient" | null,
 
     // Assessment
     "assessment_date": "YYYY-MM-DD" | null,
@@ -1274,23 +1489,46 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein SystemicTherapyEvent:
     // NESTED: Medikamente (ARRAY!)
     "drugs": [
       {
-        "drug_type": "Adriamycin (Doxorubicin)" | "Cisplatin" | "Carboplatin" | "Ifosfamide" | "Etoposide" | "Methotrexate" | "Vincristine" | "Cyclophosphamide" | "Dacarbazine" | "Gemcitabine" | "Docetaxel" | "Pazopanib" | "Trabectedin" | "Eribulin" | "Imatinib" | "Mesna" | "G-CSF" | "Other",
+        // drug_type: DB-Code aus db/constraints/drug/drug_type.yml
+        "drug_type": "doxorubicin" | "cisplatin" | "carboplatin" | "ifosfamie" | "etoposid" | "methotrexate" | "vincristin" | "cyclophosphamid" | "dtic_dacarbazine" | "gemcitabine" | "docetaxel" | "pazopanib_vegfr_pdgfr_kit" | "trabectedin" | "eribulin" | "imatinib_ckit_pdgfr_a_bcr_abl" | "liposomal_doxorubicin" | "actinomycin_d" | "navelbine" | "paclitaxel" | "temozolomid" | "trofosfamid" | "irinotecan" | "pembrolizumab_pd_1" | "nivolumab_pd_1" | "atezolizumab_pd_l1" | "avelumab_pd_l1" | "bevacizumab" | "everolimus" | "denosumab" | string | null,
         "dose": number | null,
-        "dose_unit": string | null,  // z.B. "mg", "mg/m²", "mg/kg"
+        // dose_unit: DB-Code aus db/constraints/drug/dose_unit.yml
+        "dose_unit": "mg_m2_per_day" | "mg_kg_per_day" | "auc_per_day" | "absolute_dose_mg_per_day" | "cumulative_dose_mg_per_day" | "units_per_day" | null,
         "frequency": number | null,
-        "frequency_unit": string | null,  // z.B. "daily", "weekly", "q3w"
+        // frequency_unit: DB-Code aus db/constraints/drug/frequency_unit.yml
+        "frequency_unit": "daily" | "x_times_per_week" | "x_times_per_month" | "every_other_day" | "other" | null,
         "frequency_unit_comment": string | null,
-        "route": "Intravenous (IV)" | "Oral (PO)" | "Intramuscular (IM)" | "Subcutaneous (SC)" | "Intrathecal (IT)" | "Other" | null,
-        "administration_day": string | null  // z.B. "Day 1", "Day 1-5"
+        // route: DB-Code aus db/constraints/drug/route.yml
+        "route": "intravenous_iv" | "subcutaneous_sc" | "per_os_pos" | "intramuscular_im" | "intraosseous_io" | string | null,
+        // administration_day: DB-Code aus db/constraints/drug/administration_day.yml
+        "administration_day": "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday" | null
       }
     ],
 
     // NESTED: Unerwünschte Ereignisse (ARRAY!)
     "adverse_events": [
       {
-        "medical_area": string,  // z.B. "Hematology"
-        "event_type": string,    // z.B. "Neutropenia"
-        "grade": string,         // CTCAE Grade "1", "2", "3", "4", "5"
+        // medical_area: CTCAE-Kategorie-Code (DB-Constraint). Erlaubte Werte:
+        //   blood_and_lymphatic_system_disorders | cardiac_disorders | ear_and_labyrinth_disorders |
+        //   endocrine_disorders | eye_disorders | gastrointestinal_disorders |
+        //   general_disorders_and_administration_site_conditions | hepatobiliary_disorders |
+        //   immune_system_disorders | infections_and_infestations |
+        //   injury_poisoning_and_procedural_complications | investigations |
+        //   metabolism_and_nutrition_disorders | musculoskeletal_and_connective_tissue_disorders |
+        //   nervous_system_disorders | psychiatric_disorders | renal_and_urinary_disorders |
+        //   reproductive_system_and_breast_disorders | respiratory_thoracic_and_mediastinal_disorders |
+        //   skin_and_subcutaneous_tissue_disorders | vascular_disorders | (und weitere, s.u.)
+        "medical_area": "blood_and_lymphatic_system_disorders" | "cardiac_disorders" | "gastrointestinal_disorders" | "investigations" | "nervous_system_disorders" | "skin_and_subcutaneous_tissue_disorders" | "infections_and_infestations" | "metabolism_and_nutrition_disorders" | "musculoskeletal_and_connective_tissue_disorders" | "respiratory_thoracic_and_mediastinal_disorders" | "vascular_disorders" | "hepatobiliary_disorders" | "renal_and_urinary_disorders" | "endocrine_disorders" | "immune_system_disorders" | "psychiatric_disorders" | "reproductive_system_and_breast_disorders" | "eye_disorders" | "ear_and_labyrinth_disorders" | "general_disorders_and_administration_site_conditions" | "injury_poisoning_and_procedural_complications" | string | null,
+        // event_type: CTCAE-Ereignis-Code (DB-Constraint). Häufigste Beispiele:
+        //   anemia | febrile_neutropenia | neutrophil_count_decreased | platelet_count_decreased |
+        //   white_blood_cell_decreased | lymphocyte_count_decreased | fatigue | diarrhea |
+        //   nausea | vomiting | mucositis_oral | alopecia | rash_maculo_papular | pruritus |
+        //   peripheral_sensory_neuropathy | hypertension | pneumonitis | dyspnea | sepsis |
+        //   alanine_aminotransferase_increased | aspartate_aminotransferase_increased |
+        //   creatinine_increased | blood_bilirubin_increased | hyponatremia | hypokalemia | ...
+        "event_type": string,    // CTCAE-Code bevorzugen (snake_case), z.B. "neutrophil_count_decreased"
+        // grade: DB-Constraint grade_1..grade_5
+        "grade": "grade_1" | "grade_2" | "grade_3" | "grade_4" | "grade_5" | null,
         "start_date": "YYYY-MM-DD" | null,
         "end_date": "YYYY-MM-DD" | null,
         "comment": string | null
@@ -1301,47 +1539,97 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein SystemicTherapyEvent:
 
 WICHTIGE REGELN:
 
+0. **Sprach-Normalisierung zuerst**:
+   - Egal welche Eingabesprache: zuerst in englische medizinische Begriffe normalisieren,
+     dann auf DB-Codes mappen.
+   - Beispiel: "lundi" -> "monday" -> "monday" (DB-Code)
+   - Wenn kein Mapping möglich: raw_text beibehalten (nicht raten).
+
 1. **Therapiegrund und Linie**:
-   - "neoadjuvant" → reason: "Neoadjuvant"
-   - "adjuvant" → reason: "Adjuvant"
-   - "palliativ Erstlinie" → reason: "Palliative (first line)", treatment_line: 1
+   - "neoadjuvant" → reason: "curative_intent_neoadjuvant"
+   - "adjuvant" → reason: "curative_intent_adjuvant"
+   - "palliativ" → reason: "palliative"
+   - "palliativ Erstlinie" → reason: "palliative", treatment_line: 1
    - "Zweitlinientherapie" → treatment_line: 2
+   - "Erhaltungstherapie" → reason: "additive_maintenance"
+   - "Studientherapie" → reason: "trial_mandated_systemic_therapy"
 
 2. **Protokolle**:
-   - "MAP-Schema" → bone_protocol: "MAP (Methotrexate, Adriamycin, Cisplatin)"
-   - "AI-Schema" → softtissue_protocol: "AI (Adriamycin, Ifosfamide)"
-   - "Gem/Doce" → softtissue_protocol: "Gemcitabine/Docetaxel"
+   - "EURAMOS" → bone_protocol: "euramos"
+   - "EuroEWING 2012 VIDE" → bone_protocol: "euroewing_2012_vide"
+   - "EuroEWING 2012 VDC/IE" → bone_protocol: "euroewing_2012_vdc_ie"
+   - "CWS" → bone_protocol: "cws" oder softtissue_protocol: "cws" (je nach Kontext)
+   - MAP, MAPIE, VAI, IE → bone_protocol: "other" + bone_protocol_comment mit Details
+   - AI, MAID, Gemcitabine/Docetaxel → softtissue_protocol: "other" + Kommentar
+   - Pazopanib-basiert → softtissue_protocol: "pazoqol"
 
 3. **Medikamente** (ARRAY!):
    - Für jedes Medikament ein eigenes Objekt
-   - "Doxorubicin 75 mg/m² i.v. Tag 1" →
+   - drug_type → DB-Code verwenden (z.B. "doxorubicin", nicht "Adriamycin (Doxorubicin)")
+   - dose_unit → DB-Code: "mg_m2_per_day" für mg/m², "mg_kg_per_day" für mg/kg, "absolute_dose_mg_per_day" für mg
+   - frequency_unit → DB-Code: "daily", "x_times_per_week", "x_times_per_month", "every_other_day", "other"
+   - administration_day → Wochentag-Code falls angegeben: "monday"–"sunday", sonst null
+   - "Doxorubicin 75 mg/m² i.v. Montag" →
      {
-       drug_type: "Adriamycin (Doxorubicin)",
+       drug_type: "doxorubicin",
        dose: 75,
-       dose_unit: "mg/m²",
-       route: "Intravenous (IV)",
-       administration_day: "Day 1"
+       dose_unit: "mg_m2_per_day",
+       route: "intravenous_iv",
+       administration_day: "monday"
      }
 
-4. **Unerwünschte Ereignisse** (ARRAY!):
+4. **Unerwünschte Ereignisse** (ARRAY!) — CTCAE DB-Codes verwenden**:
+   - medical_area → CTCAE-Kategorie-Code (snake_case)
+   - event_type → CTCAE-Ereignis-Code (snake_case), falls bekannt; sonst Freitext
+   - grade → "grade_1" .. "grade_5"
    - "Neutropenie Grad 3" →
      {
-       medical_area: "Hematology",
-       event_type: "Neutropenia",
-       grade: "3"
+       medical_area: "blood_and_lymphatic_system_disorders",
+       event_type: "neutrophil_count_decreased",
+       grade: "grade_3"
+     }
+   - "Thrombozytopenie Grad 2" →
+     {
+       medical_area: "blood_and_lymphatic_system_disorders",
+       event_type: "platelet_count_decreased",
+       grade: "grade_2"
+     }
+   - "Übelkeit Grad 1" →
+     {
+       medical_area: "gastrointestinal_disorders",
+       event_type: "nausea",
+       grade: "grade_1"
+     }
+   - "ALT erhöht Grad 2" →
+     {
+       medical_area: "investigations",
+       event_type: "alanine_aminotransferase_increased",
+       grade: "grade_2"
+     }
+   - "periphere sensorische Neuropathie Grad 2" →
+     {
+       medical_area: "nervous_system_disorders",
+       event_type: "peripheral_sensory_neuropathy",
+       grade: "grade_2"
      }
 
 5. **Zyklen**:
-   - "6 Zyklen geplant, 4 verabreicht" → cycles_executed: "4/6"
-   - "Zyklus 1-6 abgeschlossen" → cycles_executed: "6/6"
+   - "6 Zyklen abgeschlossen" → cycles_executed: "six"
+   - "4 von 6 Zyklen" → cycles_executed: "4/6" (raw string, kein DB-Code)
+   - "bis zur Progression" → cycles_executed: "until_progression"
 
-6. **Fehlende Werte**: null oder leere Arrays []
+6. **Hyperthermie**:
+   - Keine Hyperthermie / nicht erwähnt → hyperthermia_status: "no"
+   - Hyperthermie (geplant/laufend/abgeschlossen) → hyperthermia_status: "yes_chemotherapy_hyperthermia"
+
+7. **Fehlende Werte**: null oder leere Arrays []
 
 BEISPIELE:
 - "AI-Schema: Adriamycin 75 mg/m² + Ifosfamide 9 g/m²"
+  → softtissue_protocol: "other", softtissue_protocol_comment: "AI (Adriamycin, Ifosfamide)"
   → drugs: [
-      {drug_type: "Adriamycin (Doxorubicin)", dose: 75, dose_unit: "mg/m²"},
-      {drug_type: "Ifosfamide", dose: 9, dose_unit: "mg/m²"}
+      {drug_type: "doxorubicin", dose: 75, dose_unit: "mg_m2_per_day"},
+      {drug_type: "ifosfamie", dose: 9, dose_unit: "mg_m2_per_day"}
     ]
 """
 
