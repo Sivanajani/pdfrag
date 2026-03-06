@@ -34,10 +34,6 @@ jobs:
             context: .
             dockerfile: ./backend/Dockerfile
             image_suffix: backend
-          - name: nginx-proxy
-            context: .
-            dockerfile: ./Dockerfile.nginx-proxy
-            image_suffix: nginx-proxy
 
     steps:
       - name: Checkout
