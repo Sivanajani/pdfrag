@@ -19,6 +19,7 @@ from app.services.gemini_client import (
     classify_document_type,
     classify_and_extract_from_text,
 )
+from app.services.constraint_mapper import normalize_raw_events
 
 from app.schemas.radiology import RadiologyEvent
 from app.schemas.radioTherapy import RadiotherapyEvent
@@ -184,6 +185,7 @@ async def llm_extract_radiology(payload: _DocOrTextRequest):
         logger.exception("Radiology-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Radiology-Extraktion.")
 
+    raw_list = normalize_raw_events(raw_list, "radiology_exam")
     events, raw_events, parse_issues = _parse_events_tolerant(raw_list, RadiologyEvent)
     return RadiologyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
@@ -233,6 +235,7 @@ async def llm_extract_radiotherapy(payload: _DocOrTextRequest):
         logger.exception("Radiotherapy-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Radiotherapy-Extraktion.")
 
+    raw_list = normalize_raw_events(raw_list, "radio_therapy")
     events, raw_events, parse_issues = _parse_events_tolerant(raw_list, RadiotherapyEvent)
     return RadiotherapyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
@@ -255,6 +258,7 @@ async def llm_extract_pathology(payload: _DocOrTextRequest):
         logger.exception("Pathology-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Pathology-Extraktion.")
 
+    raw_list = normalize_raw_events(raw_list, "pathology")
     events, raw_events, parse_issues = _parse_events_tolerant(raw_list, PathologyEvent)
     return PathologyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
@@ -277,6 +281,7 @@ async def llm_extract_surgery(payload: _DocOrTextRequest):
         logger.exception("Surgery-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Surgery-Extraktion.")
 
+    raw_list = normalize_raw_events(raw_list, "surgery")
     events, raw_events, parse_issues = _parse_events_tolerant(raw_list, SurgeryEvent)
     return SurgeryExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
@@ -299,6 +304,7 @@ async def llm_extract_sarcoma_board(payload: _DocOrTextRequest):
         logger.exception("Sarcoma Board-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Sarcoma Board-Extraktion.")
 
+    raw_list = normalize_raw_events(raw_list, "sarcoma_board")
     events, raw_events, parse_issues = _parse_events_tolerant(raw_list, SarcomaBoardEvent)
     return SarcomaBoardExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 
@@ -321,6 +327,7 @@ async def llm_extract_systemic_therapy(payload: _DocOrTextRequest):
         logger.exception("Systemic Therapy-Extraktion fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Systemic Therapy-Extraktion.")
 
+    raw_list = normalize_raw_events(raw_list, "systemic_therapy")
     events, raw_events, parse_issues = _parse_events_tolerant(raw_list, SystemicTherapyEvent)
     return SystemicTherapyExtractResponse(events=events, raw_events=raw_events, parse_issues=parse_issues)
 

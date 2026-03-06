@@ -3,6 +3,7 @@ import json
 from typing import List, Dict, Any
 
 import google.generativeai as genai
+from app.services.locale_loader import build_constraint_guide
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
@@ -339,7 +340,24 @@ BEISPIELE für Multi-Event:
   Event 2: metastasis="yes", anatomic_location_of_metastasis=["lung"], metastasis_location_lung_count="more_than_five"
 """
 
-    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nRadiologie-Berichtstext:\n{text}"
+    constraint_guide = build_constraint_guide([
+        ("exam_type",                          "radiology_exam", "exam_type"),
+        ("imaging_timing",                     "radiology_exam", "imaging_timing"),
+        ("imaging_type",                       "radiology_exam", "imaging_type"),
+        ("location_of_lesion",                 "radiology_exam", "location_of_lesion"),
+        ("recist_response",                    "radiology_exam", "recist_response"),
+        ("choi_response",                      "radiology_exam", "choi_response"),
+        ("irecist_response",                   "radiology_exam", "irecist_response"),
+        ("local_disease_status",               "radiology_exam", "local_disease_status"),
+        ("metastasis",                         "radiology_exam", "metastasis"),
+        ("anatomic_location_of_metastasis",    "radiology_exam", "anatomic_location_of_metastasis"),
+    ])
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"{constraint_guide}\n\n"
+        f"JSON-Spezifikation:\n{json_spec}\n\n"
+        f"Radiologie-Berichtstext:\n{text}"
+    )
 
     response = model.generate_content(prompt)
     raw = (response.text or "").strip()
@@ -585,7 +603,17 @@ BEISPIELE für deutsche Ausdrücke:
 - "Hyperthermie: durchgeführt" → hyperthermia_status: "yes_radiation_hyperthermia"
 """
 
-    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nStrahlentherapie-Berichtstext:\n{text}"
+    constraint_guide = build_constraint_guide([
+        ("indications",       "radio_therapy", "indications"),
+        ("therapy_types",     "radio_therapy", "therapy_types"),
+        ("hyperthermia_status", "radio_therapy", "hyperthermia_status"),
+    ])
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"{constraint_guide}\n\n"
+        f"JSON-Spezifikation:\n{json_spec}\n\n"
+        f"Strahlentherapie-Berichtstext:\n{text}"
+    )
 
     response = model.generate_content(prompt)
     raw = (response.text or "").strip()
@@ -650,7 +678,6 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein PathologyEvent:
 [
   {
     // IDs
-    "institution_id": number,
     "patient_id": number,
     "responsible_pathologist_id": number | null,
 
@@ -892,7 +919,21 @@ BEISPIELE:
 - "Nekrose <10%" → extent_of_necrosis: "less_than_10_percent"
 """
 
-    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nPathologie-Berichtstext:\n{text}"
+    constraint_guide = build_constraint_guide([
+        ("biopsy_type",          "pathology", "biopsy_type"),
+        ("biopsied_lesion_type", "pathology", "biopsied_lesion_type"),
+        ("eortc_response_grade", "pathology", "eortc_response_grade"),
+        ("diagnostic_grading",   "pathology", "diagnostic_grading"),
+        ("prior_treatment",      "pathology", "prior_treatment"),
+        ("proliferation_index",  "pathology", "proliferation_index"),
+        ("extent_of_necrosis",   "pathology", "extent_of_necrosis"),
+    ])
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"{constraint_guide}\n\n"
+        f"JSON-Spezifikation:\n{json_spec}\n\n"
+        f"Pathologie-Berichtstext:\n{text}"
+    )
 
     response = model.generate_content(prompt)
     raw = (response.text or "").strip()
@@ -1195,7 +1236,21 @@ BEISPIELE:
 - "Hohe Sakrumresektion S1+S2, unilateral, ISG erhalten" → hemipelvectomy: ["e_iv_s_hs_u"]
 """
 
-    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nOperations-Berichtstext:\n{text}"
+    constraint_guide = build_constraint_guide([
+        ("indication",              "surgery", "indication"),
+        ("surgery_side",            "surgery", "surgery_side"),
+        ("resection",               "surgery", "resection"),
+        ("reconstruction",          "surgery", "reconstruction"),
+        ("amputation",              "surgery", "amputation"),
+        ("hemipelvectomy",          "surgery", "hemipelvectomy"),
+        ("participated_disciplines","surgery", "participated_disciplines"),
+    ])
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"{constraint_guide}\n\n"
+        f"JSON-Spezifikation:\n{json_spec}\n\n"
+        f"Operations-Berichtstext:\n{text}"
+    )
 
     response = model.generate_content(prompt)
     raw = (response.text or "").strip()
@@ -1362,7 +1417,21 @@ BEISPIELE:
   → reason_for_presentation: "follow_up", treatment_before_follow_up: "surgery_radiotherapy", follow_up_reason: "first_local_recurrence"
 """
 
-    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nTumorboard-Protokoll:\n{text}"
+    constraint_guide = build_constraint_guide([
+        ("reason_for_presentation",  "sarcoma_board", "reason_for_presentation"),
+        ("follow_up_reason",         "sarcoma_board", "follow_up_reason"),
+        ("decision_surgery",         "sarcoma_board", "decision_surgery"),
+        ("last_execution",           "sarcoma_board", "last_execution"),
+        ("status_before_follow_up",  "sarcoma_board", "status_before_follow_up"),
+        ("status_after_follow_up",   "sarcoma_board", "status_after_follow_up"),
+        ("treatment_before_follow_up","sarcoma_board","treatment_before_follow_up"),
+    ])
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"{constraint_guide}\n\n"
+        f"JSON-Spezifikation:\n{json_spec}\n\n"
+        f"Tumorboard-Protokoll:\n{text}"
+    )
 
     response = model.generate_content(prompt)
     raw = (response.text or "").strip()
@@ -1633,7 +1702,29 @@ BEISPIELE:
     ]
 """
 
-    prompt = f"{system_instructions}\n\nJSON-Spezifikation:\n{json_spec}\n\nSystemtherapie-Berichtstext:\n{text}"
+    constraint_guide = build_constraint_guide([
+        ("reason",                   "systemic_therapy", "reason"),
+        ("bone_protocol",            "systemic_therapy", "bone_protocol"),
+        ("softtissue_protocol",      "systemic_therapy", "softtissue_protocol"),
+        ("cycles_executed",          "systemic_therapy", "cycles_executed"),
+        ("hyperthermia_status",      "systemic_therapy", "hyperthermia_status"),
+        ("clinical_trial_inclusion", "systemic_therapy", "clinical_trial_inclusion"),
+        ("discontinuation_reason",   "systemic_therapy", "discontinuation_reason"),
+        ("patient_type",             "systemic_therapy", "patient_type"),
+        ("drug_type",                "drug",             "drug_type"),
+        ("dose_unit",                "drug",             "dose_unit"),
+        ("frequency_unit",           "drug",             "frequency_unit"),
+        ("route",                    "drug",             "route"),
+        ("administration_day",       "drug",             "administration_day"),
+        ("medical_area (CTCAE)",     "adverse_event",    "ctcae"),
+        ("grade",                    "adverse_event",    "grade"),
+    ])
+    prompt = (
+        f"{system_instructions}\n\n"
+        f"{constraint_guide}\n\n"
+        f"JSON-Spezifikation:\n{json_spec}\n\n"
+        f"Systemtherapie-Berichtstext:\n{text}"
+    )
 
     response = model.generate_content(prompt)
     raw = (response.text or "").strip()

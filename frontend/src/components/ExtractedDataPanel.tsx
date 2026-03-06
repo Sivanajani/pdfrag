@@ -469,17 +469,40 @@ export default function ExtractedDataPanel({
 
       {/* --- SURGERY --- */}
       {surgeryEvents && surgeryEvents.length > 0 && (() => {
-        const headers = ["patient_id", "surgery_date", "indication", "surgery_side", "anatomic_region", "greatest_surgical_tumor_dimension_in_mm", "had_tumor_spillage", "resection", "resected_tumor_margin", "reconstruction", "amputation", "participated_disciplines", "first_revision_details", "second_revision_details"];
+        const headers = [
+          "patient_id",
+          "institution_id",
+          "responsible_surgeon_id",
+          "surgery_date",
+          "indication",
+          "indication_comment",
+          "surgery_side",
+          "anatomic_region",
+          "greatest_surgical_tumor_dimension_in_mm",
+          "had_tumor_spillage",
+          "resection",
+          "resected_tumor_margin",
+          "reconstruction",
+          "amputation",
+          "hemipelvectomy",
+          "participated_disciplines",
+          "participated_disciplines_comment",
+          "first_revision_details",
+          "second_revision_details",
+        ];
         return (
           <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 3 }}>
             <Typography variant="subtitle1" gutterBottom>Surgery</Typography>
             <Box sx={{ overflowX: "auto", maxWidth: "100%" }}>
-              <Table size="small" sx={{ minWidth: 2200 }}>
+              <Table size="small" sx={{ minWidth: 3000 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Institution ID</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Surgeon ID</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Surgery Date</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Indication</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Indication Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Side</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Anatomic Region</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Tumor Size (mm)</TableCell>
@@ -488,7 +511,9 @@ export default function ExtractedDataPanel({
                     <TableCell sx={{ bgcolor: 'success.light' }}>Resected Margin</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>Reconstruction</TableCell>
                     <TableCell sx={{ bgcolor: 'info.light' }}>Amputation</TableCell>
+                    <TableCell sx={{ bgcolor: 'info.light' }}>Hemipelvectomy</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Disciplines</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Disciplines Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'error.light' }}>1st Revision</TableCell>
                     <TableCell sx={{ bgcolor: 'error.light' }}>2nd Revision</TableCell>
                   </TableRow>
@@ -497,8 +522,11 @@ export default function ExtractedDataPanel({
                   {surgeryEvents.map((e, idx) => (
                     <TableRow key={idx}>
                       <EditableCell {...ec("surgery", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("surgery", idx, "institution_id", String(e.institution_id ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "responsible_surgeon_id", String(e.responsible_surgeon_id ?? ""))} />
                       <EditableCell {...ec("surgery", idx, "surgery_date", String(e.surgery_date ?? ""), { fontWeight: 'bold' })} />
                       <EditableCell {...ec("surgery", idx, "indication", String(e.indication ?? ""))} />
+                      <EditableCell {...ec("surgery", idx, "indication_comment", String(e.indication_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("surgery", idx, "surgery_side", String(e.surgery_side ?? ""))} />
                       <EditableCell {...ec("surgery", idx, "anatomic_region", String(e.anatomic_region ?? ""))} />
                       <EditableCell {...ec("surgery", idx, "greatest_surgical_tumor_dimension_in_mm", String(e.greatest_surgical_tumor_dimension_in_mm ?? ""))} />
@@ -507,7 +535,9 @@ export default function ExtractedDataPanel({
                       <EditableCell {...ec("surgery", idx, "resected_tumor_margin", String(e.resected_tumor_margin ?? ""))} />
                       <EditableCell {...ec("surgery", idx, "reconstruction", String(e.reconstruction ?? ""))} />
                       <EditableCell {...ec("surgery", idx, "amputation", String(e.amputation ?? ""))} />
+                      <TableCell>{e.hemipelvectomy?.join(", ") ?? ""}</TableCell>
                       <TableCell>{e.participated_disciplines?.join(", ") ?? ""}</TableCell>
+                      <EditableCell {...ec("surgery", idx, "participated_disciplines_comment", String(e.participated_disciplines_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("surgery", idx, "first_revision_details", String(e.first_revision_details ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("surgery", idx, "second_revision_details", String(e.second_revision_details ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                     </TableRow>
@@ -650,19 +680,47 @@ export default function ExtractedDataPanel({
 
       {/* --- SYSTEMIC THERAPY --- */}
       {systemicTherapyEvents && systemicTherapyEvents.length > 0 && (() => {
-        const headers = ["patient_id", "reason", "treatment_line", "bone_protocol", "softtissue_protocol", "cycle_start_date", "cycle_end_date", "cycles_executed", "was_rct_concomittant", "hyperthermia_status", "clinical_trial_inclusion", "discontinuation_reason", "patient_type", "comments", "drugs", "adverse_events"];
+        const headers = [
+          "patient_id",
+          "institution_id",
+          "responsible_oncologist_id",
+          "reason",
+          "reason_comment",
+          "treatment_line",
+          "bone_protocol",
+          "bone_protocol_comment",
+          "softtissue_protocol",
+          "softtissue_protocol_comment",
+          "cycle_start_date",
+          "cycle_end_date",
+          "cycles_executed",
+          "was_rct_concomittant",
+          "hyperthermia_status",
+          "clinical_trial_inclusion",
+          "discontinuation_reason",
+          "patient_type",
+          "assessment_date",
+          "comments",
+          "drugs",
+          "adverse_events",
+        ];
         return (
           <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 3 }}>
             <Typography variant="subtitle1" gutterBottom>Systemic Therapy</Typography>
             <Box sx={{ overflowX: "auto", maxWidth: "100%" }}>
-              <Table size="small" sx={{ minWidth: 2700 }}>
+              <Table size="small" sx={{ minWidth: 3400 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={pidHeaderSx}>Patient ID</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Institution ID</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Oncologist ID</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'white' }}>Reason</TableCell>
+                    <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Reason Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'primary.light', color: 'white' }}>Treatment Line</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Bone Protocol</TableCell>
+                    <TableCell sx={{ bgcolor: 'warning.light' }}>Bone Protocol Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'warning.light' }}>Soft Tissue Protocol</TableCell>
+                    <TableCell sx={{ bgcolor: 'warning.light' }}>Soft Tissue Protocol Comment</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Cycle Start</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Cycle End</TableCell>
                     <TableCell sx={{ bgcolor: 'success.light' }}>Cycles Executed</TableCell>
@@ -671,6 +729,7 @@ export default function ExtractedDataPanel({
                     <TableCell sx={{ bgcolor: 'info.light' }}>Clinical Trial</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Discontinuation</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Patient Type</TableCell>
+                    <TableCell sx={{ bgcolor: 'secondary.light' }}>Assessment Date</TableCell>
                     <TableCell sx={{ bgcolor: 'secondary.light' }}>Comments</TableCell>
                     <TableCell sx={{ bgcolor: 'error.light' }}>Drugs</TableCell>
                     <TableCell sx={{ bgcolor: 'error.light' }}>Adverse Events</TableCell>
@@ -680,10 +739,15 @@ export default function ExtractedDataPanel({
                   {systemicTherapyEvents.map((e, idx) => (
                     <TableRow key={idx}>
                       <EditableCell {...ec("systemicTherapy", idx, "patient_id", String((e as any).patient_id ?? ""), pidCellSx)} />
+                      <EditableCell {...ec("systemicTherapy", idx, "institution_id", String(e.institution_id ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "responsible_oncologist_id", String(e.responsible_oncologist_id ?? ""))} />
                       <EditableCell {...ec("systemicTherapy", idx, "reason", String(e.reason ?? ""), { fontWeight: 'bold' })} />
+                      <EditableCell {...ec("systemicTherapy", idx, "reason_comment", String(e.reason_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("systemicTherapy", idx, "treatment_line", String(e.treatment_line ?? ""))} />
                       <EditableCell {...ec("systemicTherapy", idx, "bone_protocol", String(e.bone_protocol ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "bone_protocol_comment", String(e.bone_protocol_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("systemicTherapy", idx, "softtissue_protocol", String(e.softtissue_protocol ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "softtissue_protocol_comment", String(e.softtissue_protocol_comment ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <EditableCell {...ec("systemicTherapy", idx, "cycle_start_date", String(e.cycle_start_date ?? ""))} />
                       <EditableCell {...ec("systemicTherapy", idx, "cycle_end_date", String(e.cycle_end_date ?? ""))} />
                       <EditableCell {...ec("systemicTherapy", idx, "cycles_executed", String(e.cycles_executed ?? ""))} />
@@ -692,6 +756,7 @@ export default function ExtractedDataPanel({
                       <EditableCell {...ec("systemicTherapy", idx, "clinical_trial_inclusion", String(e.clinical_trial_inclusion ?? ""))} />
                       <EditableCell {...ec("systemicTherapy", idx, "discontinuation_reason", String(e.discontinuation_reason ?? ""))} />
                       <EditableCell {...ec("systemicTherapy", idx, "patient_type", String(e.patient_type ?? ""))} />
+                      <EditableCell {...ec("systemicTherapy", idx, "assessment_date", String(e.assessment_date ?? ""))} />
                       <EditableCell {...ec("systemicTherapy", idx, "comments", String(e.comments ?? ""), { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} />
                       <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.drugs?.map(d => `${d.drug_type} ${d.dose ?? ""}${d.dose_unit ?? ""}`).join("; ") ?? ""}</TableCell>
                       <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.adverse_events?.map(ae => `${ae.event_type} (Grade ${ae.grade})`).join("; ") ?? ""}</TableCell>
