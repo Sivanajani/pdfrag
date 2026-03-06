@@ -30,7 +30,7 @@ jobs:
             dockerfile: ./frontend/prod/Dockerfile
             image_suffix: frontend
           - name: backend
-            context: ./backend
+            context: .
             dockerfile: ./backend/Dockerfile
             image_suffix: backend
 
