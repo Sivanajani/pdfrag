@@ -438,10 +438,10 @@ def _extract_multi_domain_result(domain: str, raw_text: str, sections: List[Dict
     started = time.perf_counter()
     topic, extractor_fn, model_cls = _DOMAIN_CONFIG[domain]
 
-    # Prefer domain sections; fallback to capped fulltext to reduce tokens for mixed/long reports.
+    # Prefer domain sections; fallback to fulltext if no domain section was detected.
     section_text = get_text_for_domain(sections, domain)
     used_section_text = bool(section_text)
-    domain_text = section_text or raw_text[:12_000]
+    domain_text = section_text or raw_text
 
     try:
         raw_list = extractor_fn(domain_text)
@@ -478,7 +478,7 @@ async def llm_extract_multi(payload: _DocOrTextRequest):
     nur diese (token-effizient). Unterstützt Mischberichte mit mehreren Domains.
 
     Flow:
-    1. Multi-Label-Klassifikation des Gesamttexts → detected_types (max 3)
+    1. Multi-Label-Klassifikation des Gesamttexts → detected_types (max 6)
     2. Dokument per Überschriften in Abschnitte teilen + Keyword-Tagging
     3. Pro erkannter Domain: nur zugehörige Abschnitte extrahieren
        (Fallback auf Volltext wenn keine passenden Abschnitte)
@@ -487,10 +487,10 @@ async def llm_extract_multi(payload: _DocOrTextRequest):
     total_started = time.perf_counter()
     raw_text = _resolve_text(payload)
 
-    # 1. Multi-Label-Klassifikation (1 LLM-Call, max 3 Typen)
+    # 1. Multi-Label-Klassifikation (1 LLM-Call, max 6 Typen)
     classify_started = time.perf_counter()
     try:
-        detected_types = classify_document_types_multi(raw_text, max_types=3)
+        detected_types = classify_document_types_multi(raw_text, max_types=6)
     except Exception:
         logger.exception("Multi-Klassifikation fehlgeschlagen")
         detected_types = []
@@ -511,7 +511,7 @@ async def llm_extract_multi(payload: _DocOrTextRequest):
     extract_started = time.perf_counter()
     domain_results: Dict[str, DomainResult] = {}
     domain_meta: Dict[str, DomainMeta] = {}
-    max_workers = max(1, min(3, len(detected_types)))
+    max_workers = max(1, min(6, len(detected_types)))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
             executor.submit(_extract_multi_domain_result, domain, raw_text, sections)
