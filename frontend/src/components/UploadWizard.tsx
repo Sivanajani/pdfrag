@@ -14,7 +14,8 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import {
   uploadPdfWithText,
-  classifyAndExtractByText,
+  llmExtractMultiByDocId,
+  llmExtractMultiByText,
   llmExtractRadiologyByText,
   llmExtractRadiotherapyByText,
   llmExtractPathologyByText,
@@ -42,10 +43,13 @@ type WizardDoc = {
   previewText?: string;
   patientId: string;
   detectedDocType?: DocType;
+  detectedDocTypes?: DocType[];
+  extractedByDomain?: Partial<Record<DocType, any[]>>;
   overrideDocType?: DocType;
   extractedEvents?: any[];
   rawExtractedEvents?: any[];
   parseIssues?: { event_index: number; field?: string | null; raw_value?: any; error: string }[];
+  processingMs?: number;
   status: "pending" | "extracting" | "ready" | "error";
   error?: string;
 };
@@ -112,6 +116,15 @@ function mergeEventLists(parsedEvents: any[] = [], rawEvents: any[] = []): any[]
   return out;
 }
 
+const DOMAIN_KEYS: DocType[] = [
+  "radiology",
+  "radiotherapy",
+  "pathology",
+  "surgery",
+  "sarcoma_board",
+  "systemic_therapy",
+];
+
 export default function UploadWizard({ onResults }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -120,6 +133,7 @@ export default function UploadWizard({ onResults }: Props) {
   const [docs, setDocs] = useState<WizardDoc[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [processingIdx, setProcessingIdx] = useState(-1);
+  const [processingElapsedSec, setProcessingElapsedSec] = useState(0);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [reExtractingIdx, setReExtractingIdx] = useState(-1);
   const docTypeOptions = useMemo<{ value: DocType; label: string }[]>(
@@ -151,11 +165,34 @@ export default function UploadWizard({ onResults }: Props) {
     };
 
     for (const doc of docsList) {
+      const pid = doc.patientId.trim();
+      if (!pid) continue;
+
+      if (doc.extractedByDomain) {
+        for (const domain of DOMAIN_KEYS) {
+          const domainEvents = doc.extractedByDomain[domain];
+          if (!domainEvents || domainEvents.length === 0) continue;
+
+          if (domain === "radiology") {
+            results.radiologyEvents.push(...domainEvents.map((e) => ({ ...e, patient_id: pid as any })));
+          } else if (domain === "radiotherapy") {
+            results.radiotherapyEvents.push(...domainEvents.map((e) => ({ ...e, patient_id: pid as any })));
+          } else if (domain === "pathology") {
+            results.pathologyEvents.push(...domainEvents.map((e) => ({ ...e, patient_id: pid as any })));
+          } else if (domain === "surgery") {
+            results.surgeryEvents.push(...domainEvents.map((e) => ({ ...e, patient_id: pid as any })));
+          } else if (domain === "sarcoma_board") {
+            results.sarcomaBoardEvents.push(...domainEvents.map((e) => ({ ...e, patient_id: pid as any })));
+          } else if (domain === "systemic_therapy") {
+            results.systemicTherapyEvents.push(...domainEvents.map((e) => ({ ...e, patient_id: pid as any })));
+          }
+        }
+        continue;
+      }
+
       const docType = doc.overrideDocType || doc.detectedDocType;
       const events = doc.extractedEvents;
       if (!docType || !events) continue;
-
-      const pid = doc.patientId.trim();
 
       if (docType === "radiology") {
         results.radiologyEvents.push(...events.map((e) => ({ ...e, patient_id: pid as any })));
@@ -256,6 +293,19 @@ export default function UploadWizard({ onResults }: Props) {
     }
   }, [phase, currentIdx, extractTextAt]);
 
+  useEffect(() => {
+    if (phase !== "processing" || processingIdx < 0) {
+      setProcessingElapsedSec(0);
+      return;
+    }
+    const startedAt = Date.now();
+    setProcessingElapsedSec(0);
+    const timer = window.setInterval(() => {
+      setProcessingElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [phase, processingIdx]);
+
   const confirmAndNext = useCallback(async () => {
     const doc = docsRef.current[currentIdx];
     if (!doc || !doc.patientId.trim() || !doc.extractedText) return;
@@ -291,14 +341,38 @@ export default function UploadWizard({ onResults }: Props) {
       if (!doc.extractedText) continue;
 
       try {
-        const result = await classifyAndExtractByText(doc.extractedText);
-        const mergedEvents = mergeEventLists(result.events ?? [], result.raw_events ?? []);
+        const result = doc.docId
+          ? await llmExtractMultiByDocId(doc.docId)
+          : await llmExtractMultiByText(doc.extractedText);
+
+        const detectedTypes = DOMAIN_KEYS.filter((d) => (result.detected_types ?? []).includes(d));
+        const mergedByDomain: Partial<Record<DocType, any[]>> = {};
+        const allRawEvents: any[] = [];
+        const allParseIssues: { event_index: number; field?: string | null; raw_value?: any; error: string }[] = [];
+
+        for (const domain of DOMAIN_KEYS) {
+          const domainResult = result[domain];
+          const mergedEvents = mergeEventLists(domainResult?.events ?? [], domainResult?.raw_events ?? []);
+          mergedByDomain[domain] = mergedEvents;
+          allRawEvents.push(...(domainResult?.raw_events ?? []));
+          allParseIssues.push(
+            ...(domainResult?.parse_issues ?? []).map((issue) => ({
+              ...issue,
+              field: issue.field ? `${domain}.${issue.field}` : domain,
+            }))
+          );
+        }
+
+        const mergedEvents = DOMAIN_KEYS.flatMap((domain) => mergedByDomain[domain] ?? []);
         updatedDocs[i] = {
           ...updatedDocs[i],
-          detectedDocType: result.doc_type,
+          detectedDocType: detectedTypes[0],
+          detectedDocTypes: detectedTypes,
+          extractedByDomain: mergedByDomain,
           extractedEvents: mergedEvents,
-          rawExtractedEvents: result.raw_events ?? [],
-          parseIssues: result.parse_issues ?? [],
+          rawExtractedEvents: allRawEvents,
+          parseIssues: allParseIssues,
+          processingMs: result.meta?.total_ms ?? undefined,
         };
         setDocs([...updatedDocs]);
       } catch (e: any) {
@@ -349,8 +423,21 @@ export default function UploadWizard({ onResults }: Props) {
       }
 
       setDocs((prev) => {
+        const updatedDomainEvents = DOMAIN_KEYS.reduce((acc, domain) => {
+          acc[domain] = domain === docType ? events : [];
+          return acc;
+        }, {} as Partial<Record<DocType, any[]>>);
+
         const updated = prev.map((d, i) =>
-          i === idx ? { ...d, extractedEvents: events, detectedDocType: doc.overrideDocType || doc.detectedDocType } : d
+          i === idx
+            ? {
+                ...d,
+                extractedByDomain: updatedDomainEvents,
+                extractedEvents: events,
+                detectedDocType: docType,
+                detectedDocTypes: [docType],
+              }
+            : d
         );
         // Fire onResults with the updated doc list
         onResults(buildResults(updated));
@@ -629,6 +716,11 @@ export default function UploadWizard({ onResults }: Props) {
           value={processingIdx >= 0 ? ((processingIdx + 1) / docs.length) * 100 : 0}
           sx={{ mb: 2, borderRadius: 1 }}
         />
+        {processingIdx >= 0 && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            Aktuelles Dokument laeuft seit {processingElapsedSec}s
+          </Typography>
+        )}
 
         <Stack spacing={1}>
           {docs.map((doc, idx) => (
@@ -640,18 +732,22 @@ export default function UploadWizard({ onResults }: Props) {
               ) : (
                 <Box sx={{ width: 16, height: 16 }} />
               )}
-              <Typography
-                variant="body2"
-                color={idx === processingIdx ? "primary" : idx < processingIdx ? "text.secondary" : "text.disabled"}
-              >
-                {doc.file.name} (PID: {doc.patientId})
-                {idx < processingIdx && doc.detectedDocType && (
-                  <Chip label={docTypeOptions.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType} size="small" sx={{ ml: 1 }} />
-                )}
-              </Typography>
-            </Stack>
-          ))}
-        </Stack>
+                <Typography
+                  variant="body2"
+                  color={idx === processingIdx ? "primary" : idx < processingIdx ? "text.secondary" : "text.disabled"}
+                >
+                  {doc.file.name} (PID: {doc.patientId})
+                  {idx < processingIdx && doc.detectedDocTypes && doc.detectedDocTypes.length > 0 && (
+                    <Chip
+                      label={doc.detectedDocTypes.map((d) => docTypeOptions.find((o) => o.value === d)?.label ?? d).join(" + ")}
+                      size="small"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
 
         {processingError && (
           <Alert severity="warning" sx={{ mt: 2 }}>{processingError}</Alert>
@@ -692,7 +788,12 @@ export default function UploadWizard({ onResults }: Props) {
               </thead>
               <tbody>
                 {docs.map((doc, idx) => {                  
-                  const isOverridden = doc.overrideDocType && doc.overrideDocType !== doc.detectedDocType;
+                  const detectedTypes = (doc.detectedDocTypes && doc.detectedDocTypes.length > 0)
+                    ? doc.detectedDocTypes
+                    : (doc.detectedDocType ? [doc.detectedDocType] : []);
+                  const primaryDetectedType = detectedTypes[0];
+                  const isMultiType = detectedTypes.length > 1;
+                  const isOverridden = !!doc.overrideDocType && doc.overrideDocType !== primaryDetectedType;
 
                   return (
                     <tr key={idx}>
@@ -702,19 +803,26 @@ export default function UploadWizard({ onResults }: Props) {
                         <Chip label={doc.patientId} size="small" color="primary" />
                       </td>
                       <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
-                        <Chip
-                          label={docTypeOptions.find((o) => o.value === doc.detectedDocType)?.label ?? doc.detectedDocType ?? "–"}
-                          size="small"
-                          color={isOverridden ? "default" : "success"}
-                          variant={isOverridden ? "outlined" : "filled"}
-                        />
+                        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                          {detectedTypes.length === 0 && <Chip label="-" size="small" variant="outlined" />}
+                          {detectedTypes.map((type, i) => (
+                            <Chip
+                              key={`${type}-${i}`}
+                              label={docTypeOptions.find((o) => o.value === type)?.label ?? type}
+                              size="small"
+                              color={!isOverridden && i === 0 ? "success" : "default"}
+                              variant={!isOverridden && i === 0 ? "filled" : "outlined"}
+                            />
+                          ))}
+                        </Stack>
                       </td>
                       <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
                         <Select
-                          value={doc.overrideDocType || doc.detectedDocType || ""}
+                          value={doc.overrideDocType || primaryDetectedType || ""}
                           size="small"
                           onChange={(e) => updateOverrideDocType(idx, e.target.value as DocType)}
                           sx={{ minWidth: 160 }}
+                          disabled={isMultiType || !primaryDetectedType}
                         >
                           {docTypeOptions.map((opt) => (
                             <MenuItem key={opt.value} value={opt.value}>
@@ -724,7 +832,14 @@ export default function UploadWizard({ onResults }: Props) {
                         </Select>
                       </td>
                       <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
-                        {doc.extractedEvents?.length ?? 0}
+                        <Stack spacing={0.5}>
+                          <span>{doc.extractedEvents?.length ?? 0}</span>
+                          {doc.processingMs !== undefined && (
+                            <Typography variant="caption" color="text.secondary">
+                              {(doc.processingMs / 1000).toFixed(1)}s
+                            </Typography>
+                          )}
+                        </Stack>
                       </td>
                       <td style={{ padding: "8px", borderBottom: "1px solid #eee" }}>
                         <Button
@@ -732,7 +847,7 @@ export default function UploadWizard({ onResults }: Props) {
                           variant="outlined"
                           startIcon={reExtractingIdx === idx ? <CircularProgress size={14} /> : <ReplayIcon />}
                           onClick={() => reExtractDoc(idx)}
-                          disabled={reExtractingIdx >= 0}
+                          disabled={reExtractingIdx >= 0 || isMultiType || !primaryDetectedType}
                         >
                           {t("uploadWizard.reextract")}
                         </Button>

@@ -1,8 +1,10 @@
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, List, Any, Dict, Type, TypeVar
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, Field
 
 from app.utils.paths import validate_doc_id
 from app.services.pdf_service import read_pdf_text
@@ -18,8 +20,10 @@ from app.services.gemini_client import (
     extract_systemic_therapy_events_from_text,
     classify_document_type,
     classify_and_extract_from_text,
+    classify_document_types_multi,
 )
 from app.services.constraint_mapper import normalize_raw_events
+from app.services.section_splitter import split_into_sections, get_text_for_domain
 
 from app.schemas.radiology import RadiologyEvent
 from app.schemas.radioTherapy import RadiotherapyEvent
@@ -380,3 +384,158 @@ async def llm_classify_and_extract(payload: _DocOrTextRequest):
 
     # Unknown doc_type fallback: keep extractor output as-is.
     return ClassifyAndExtractResponse(doc_type=doc_type, events=raw_list, raw_events=raw_list, parse_issues=[])
+
+
+# --- Multi-Domain Extraction ---
+
+# Mapping: domain → (constraint_topic, extractor_fn, pydantic_model)
+_DOMAIN_CONFIG: Dict[str, tuple] = {
+    "radiology":        ("radiology_exam",   extract_radiology_events_from_text,        RadiologyEvent),
+    "radiotherapy":     ("radio_therapy",    extract_radiotherapy_events_from_text,     RadiotherapyEvent),
+    "pathology":        ("pathology",        extract_pathology_events_from_text,        PathologyEvent),
+    "surgery":          ("surgery",          extract_surgery_events_from_text,          SurgeryEvent),
+    "sarcoma_board":    ("sarcoma_board",    extract_sarcoma_board_events_from_text,    SarcomaBoardEvent),
+    "systemic_therapy": ("systemic_therapy", extract_systemic_therapy_events_from_text, SystemicTherapyEvent),
+}
+
+
+class DomainResult(BaseModel):
+    events: List[Dict[str, Any]] = Field(default_factory=list)
+    raw_events: List[Dict[str, Any]] = Field(default_factory=list)
+    parse_issues: List[ParseIssue] = Field(default_factory=list)
+
+
+class DomainMeta(BaseModel):
+    input_chars: int = 0
+    used_section_text: bool = False
+    duration_ms: int = 0
+    events_count: int = 0
+    raw_events_count: int = 0
+    parse_issues_count: int = 0
+    error: Optional[str] = None
+
+
+class MultiExtractMeta(BaseModel):
+    classify_ms: int = 0
+    split_ms: int = 0
+    extract_ms: int = 0
+    total_ms: int = 0
+    domain_meta: Dict[str, DomainMeta] = Field(default_factory=dict)
+
+
+class MultiExtractResponse(BaseModel):
+    detected_types: List[str] = Field(default_factory=list)
+    radiology: DomainResult = Field(default_factory=DomainResult)
+    radiotherapy: DomainResult = Field(default_factory=DomainResult)
+    pathology: DomainResult = Field(default_factory=DomainResult)
+    surgery: DomainResult = Field(default_factory=DomainResult)
+    sarcoma_board: DomainResult = Field(default_factory=DomainResult)
+    systemic_therapy: DomainResult = Field(default_factory=DomainResult)
+    meta: MultiExtractMeta = Field(default_factory=MultiExtractMeta)
+
+
+def _extract_multi_domain_result(domain: str, raw_text: str, sections: List[Dict[str, Any]]) -> tuple[str, DomainResult, DomainMeta]:
+    started = time.perf_counter()
+    topic, extractor_fn, model_cls = _DOMAIN_CONFIG[domain]
+
+    # Prefer domain sections; fallback to capped fulltext to reduce tokens for mixed/long reports.
+    section_text = get_text_for_domain(sections, domain)
+    used_section_text = bool(section_text)
+    domain_text = section_text or raw_text[:12_000]
+
+    try:
+        raw_list = extractor_fn(domain_text)
+        raw_list = normalize_raw_events(raw_list, topic)
+        events, raw_events, parse_issues = _parse_events_tolerant(raw_list, model_cls)
+        result = DomainResult(
+            events=[e.model_dump() for e in events],
+            raw_events=raw_events,
+            parse_issues=parse_issues,
+        )
+        err = None
+    except Exception as exc:
+        logger.exception("Extraktion fehlgeschlagen für Domain '%s'", domain)
+        result = DomainResult()
+        err = str(exc)
+
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    meta = DomainMeta(
+        input_chars=len(domain_text),
+        used_section_text=used_section_text,
+        duration_ms=duration_ms,
+        events_count=len(result.events),
+        raw_events_count=len(result.raw_events),
+        parse_issues_count=len(result.parse_issues),
+        error=err,
+    )
+    return domain, result, meta
+
+
+@router.post("/llm/extract-multi", response_model=MultiExtractResponse)
+async def llm_extract_multi(payload: _DocOrTextRequest):
+    """
+    Erkennt automatisch welche Domains in einem Dokument vorkommen und extrahiert
+    nur diese (token-effizient). Unterstützt Mischberichte mit mehreren Domains.
+
+    Flow:
+    1. Multi-Label-Klassifikation des Gesamttexts → detected_types (max 3)
+    2. Dokument per Überschriften in Abschnitte teilen + Keyword-Tagging
+    3. Pro erkannter Domain: nur zugehörige Abschnitte extrahieren
+       (Fallback auf Volltext wenn keine passenden Abschnitte)
+    4. Normalisierung + Pydantic-Validierung wie bei Einzel-Endpoints
+    """
+    total_started = time.perf_counter()
+    raw_text = _resolve_text(payload)
+
+    # 1. Multi-Label-Klassifikation (1 LLM-Call, max 3 Typen)
+    classify_started = time.perf_counter()
+    try:
+        detected_types = classify_document_types_multi(raw_text, max_types=3)
+    except Exception:
+        logger.exception("Multi-Klassifikation fehlgeschlagen")
+        detected_types = []
+    classify_ms = int((time.perf_counter() - classify_started) * 1000)
+
+    # Sicherheitsnetz: nur bekannte Domains, Fallback auf radiology
+    detected_types = [d for d in detected_types if d in _DOMAIN_CONFIG]
+    if not detected_types:
+        logger.warning("Keine Domain erkannt – Fallback auf radiology")
+        detected_types = ["radiology"]
+
+    # 2. Dokument in Abschnitte splitten (Keyword-basiert, kein LLM)
+    split_started = time.perf_counter()
+    sections = split_into_sections(raw_text)
+    split_ms = int((time.perf_counter() - split_started) * 1000)
+
+    # 3. Pro erkannter Domain parallel extrahieren
+    extract_started = time.perf_counter()
+    domain_results: Dict[str, DomainResult] = {}
+    domain_meta: Dict[str, DomainMeta] = {}
+    max_workers = max(1, min(3, len(detected_types)))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(_extract_multi_domain_result, domain, raw_text, sections)
+            for domain in detected_types
+        ]
+        for future in as_completed(futures):
+            try:
+                domain, result, meta = future.result()
+            except Exception:
+                logger.exception("Unerwarteter Fehler in Parallel-Extraktion")
+                continue
+            domain_results[domain] = result
+            domain_meta[domain] = meta
+    extract_ms = int((time.perf_counter() - extract_started) * 1000)
+    total_ms = int((time.perf_counter() - total_started) * 1000)
+
+    return MultiExtractResponse(
+        detected_types=detected_types,
+        meta=MultiExtractMeta(
+            classify_ms=classify_ms,
+            split_ms=split_ms,
+            extract_ms=extract_ms,
+            total_ms=total_ms,
+            domain_meta=domain_meta,
+        ),
+        **domain_results,
+    )

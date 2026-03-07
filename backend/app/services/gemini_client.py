@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from typing import List, Dict, Any
 import logging
 
@@ -462,6 +463,106 @@ Klassifikation:""".format(text=classify_text)
     except Exception:
         # Bei Fehler: Default zu radiology
         return "radiology"
+
+
+_VALID_DOC_TYPES = frozenset({
+    "radiology", "radiotherapy", "pathology", "surgery", "sarcoma_board", "systemic_therapy"
+})
+
+_MULTI_TYPE_PATTERN = re.compile(
+    r"\b(radiology|radiotherapy|pathology|surgery|sarcoma_board|systemic_therapy)\b"
+)
+
+
+def _build_multi_classify_text(text: str, max_chars: int = 8000) -> str:
+    """
+    Baut einen kompakten Überblick für die Multi-Label-Klassifikation:
+    - Alle Abschnittsüberschriften (zeigen sofort welche Domains vorhanden sind)
+    - Dazu kurze Snippets aus Anfang, Mitte und Ende des Dokuments
+
+    Warum NICHT build_classification_text: Die Funktion nimmt nur Head/Mid/Tail
+    und verpasst bei langen Mischberichten die meisten Domain-Überschriften.
+    """
+    import re as _re
+
+    stripped = text.strip()
+    n = len(stripped)
+
+    # Alle Zeilen extrahieren die wie Überschriften aussehen (kurz, keine langen Sätze)
+    heading_pattern = _re.compile(
+        r"(?im)^[A-ZÄÖÜ][^\n]{2,60}(?::|\.|\s*$)",
+    )
+    headings = heading_pattern.findall(stripped)
+    headings_block = "\n".join(h.strip() for h in headings[:80])  # max 80 Überschriften
+
+    # Kurze Snippets für Kontext
+    chunk = min(1500, n // 4)
+    head = stripped[:chunk]
+    mid_start = max(0, (n // 2) - chunk // 2)
+    middle = stripped[mid_start: mid_start + chunk]
+    tail = stripped[-chunk:] if n > chunk else ""
+
+    parts = [
+        "=== ÜBERSCHRIFTEN / ABSCHNITTSNAMEN ===\n" + headings_block,
+        "=== DOKUMENTANFANG ===\n" + head,
+        "=== DOKUMENTMITTE ===\n" + middle,
+        "=== DOKUMENTENDE ===\n" + tail,
+    ]
+    result = "\n\n".join(parts)
+    return result[:max_chars]
+
+
+def classify_document_types_multi(text: str, max_types: int = 3) -> List[str]:
+    """
+    Multi-Label-Klassifikation: gibt ALLE im Text enthaltenen Dokumenttypen zurück.
+    Nutzt einen Überblick aus allen Überschriften des Dokuments statt nur Head/Mid/Tail,
+    damit bei langen Mischberichten alle Domains erkannt werden.
+
+    Returns:
+        Geordnete, deduplizierte Liste aus _VALID_DOC_TYPES, maximal max_types Einträge.
+        Gibt [] zurück wenn nichts erkannt.
+    """
+    if not text or text.strip() == "":
+        return []
+
+    model = _get_model()
+    classify_text = _build_multi_classify_text(text)
+
+    prompt = (
+        "Du bist ein medizinischer Dokumenten-Klassifikations-Assistent.\n\n"
+        "AUFGABE: Ein Dokument kann MEHRERE Dokumenttypen enthalten. "
+        "Gib ALLE zutreffenden Typen zurück.\n\n"
+        "Erlaubte Typen:\n"
+        "- radiology: MRT, CT, Röntgen, PET, Ultraschall, Bildgebung\n"
+        "- radiotherapy: Strahlentherapie, Gy, Gray, Fraktionen, Bestrahlungsplan\n"
+        "- pathology: Histologie, Biopsie, WHO-Diagnose, Immunhistochemie, Resektionsrand\n"
+        "- surgery: Operation, OP-Bericht, Resektion, Operateur, Tumorprothese\n"
+        "- sarcoma_board: Tumorboard, Sarkomboard, Tumorkonferenz, Board-Entscheidung\n"
+        "- systemic_therapy: Chemotherapie, Immuntherapie, Therapielinie, mg/m², Protokoll\n\n"
+        "ANTWORTFORMAT: Kommaseparierte Liste der zutreffenden Typ-Namen.\n"
+        "Beispiel Mischbericht: radiology,pathology,surgery\n"
+        "Beispiel Einzelbefund: radiology\n"
+        "KEIN JSON, KEINE Erklärung, NUR die Typnamen.\n\n"
+        f"Dokumentüberblick:\n{classify_text}\n\nErkannte Typen:"
+    )
+
+    try:
+        response = model.generate_content(prompt)
+        raw = (response.text or "").strip().lower()
+        # Robustes Parsing per Regex – ignoriert alles ausser erlaubten Typnamen
+        found: List[str] = []
+        seen: set = set()
+        for m in _MULTI_TYPE_PATTERN.finditer(raw):
+            t = m.group(1)
+            if t not in seen:
+                seen.add(t)
+                found.append(t)
+                if len(found) >= max_types:
+                    break
+        return found
+    except Exception:
+        logger.warning("classify_document_types_multi fehlgeschlagen", exc_info=True)
+        return []
 
 
 def build_classification_text(text: str, chunk_size: int = 1200) -> str:

@@ -574,16 +574,73 @@ export async function llmExtractSystemicTherapyByDocId(docId: string): Promise<S
 // COMBINED CLASSIFY + EXTRACT (single HTTP call)
 // ============================================================================
 
+export type ParseIssue = {
+  event_index: number
+  field?: string | null
+  raw_value?: any
+  error: string
+}
+
+export type MultiDomainExtractResult = {
+  events: Record<string, any>[]
+  raw_events: Record<string, any>[]
+  parse_issues: ParseIssue[]
+}
+
+export type DomainExtractMeta = {
+  input_chars: number
+  used_section_text: boolean
+  duration_ms: number
+  events_count: number
+  raw_events_count: number
+  parse_issues_count: number
+  error?: string | null
+}
+
+export type MultiExtractMeta = {
+  classify_ms: number
+  split_ms: number
+  extract_ms: number
+  total_ms: number
+  domain_meta: Partial<Record<DocType, DomainExtractMeta>>
+}
+
+export type MultiExtractResponse = {
+  detected_types: DocType[]
+  radiology: MultiDomainExtractResult
+  radiotherapy: MultiDomainExtractResult
+  pathology: MultiDomainExtractResult
+  surgery: MultiDomainExtractResult
+  sarcoma_board: MultiDomainExtractResult
+  systemic_therapy: MultiDomainExtractResult
+  meta: MultiExtractMeta
+}
+
+export async function llmExtractMultiByText(text: string): Promise<MultiExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-multi`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function llmExtractMultiByDocId(docId: string): Promise<MultiExtractResponse> {
+  const res = await fetch(`${API}/llm/extract-multi`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doc_id: docId }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export type ClassifyAndExtractResponse = {
   doc_type: DocType
   events: any[]
   raw_events?: Record<string, any>[]
-  parse_issues?: {
-    event_index: number
-    field?: string | null
-    raw_value?: any
-    error: string
-  }[]
+  parse_issues?: ParseIssue[]
 }
 
 export async function classifyAndExtractByText(text: string): Promise<ClassifyAndExtractResponse> {
