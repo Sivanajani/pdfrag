@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, Any, Dict, Type, TypeVar, Callable
+from typing import Optional, List, Any, Dict, Type, TypeVar
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ValidationError
@@ -18,10 +18,8 @@ from app.services.gemini_client import (
     extract_systemic_therapy_events_from_text,
     classify_document_type,
     classify_and_extract_from_text,
-    extract_befund_section,
-    build_classification_text,
 )
-from app.services.constraint_mapper import normalize_raw_events, normalize_raw_events_with_meta
+from app.services.constraint_mapper import normalize_raw_events
 
 from app.schemas.radiology import RadiologyEvent
 from app.schemas.radioTherapy import RadiotherapyEvent
@@ -355,27 +353,6 @@ def _topic_and_model_for_doc_type(doc_type: str) -> tuple[Optional[str], Optiona
     return mapping.get(doc_type, (None, None))
 
 
-def _extractor_for_doc_type(doc_type: str) -> Callable[[str], List[Dict[str, Any]]]:
-    extractor_map: Dict[str, Callable[[str], List[Dict[str, Any]]]] = {
-        "radiology": extract_radiology_events_from_text,
-        "radiotherapy": extract_radiotherapy_events_from_text,
-        "pathology": extract_pathology_events_from_text,
-        "surgery": extract_surgery_events_from_text,
-        "sarcoma_board": extract_sarcoma_board_events_from_text,
-        "systemic_therapy": extract_systemic_therapy_events_from_text,
-    }
-    return extractor_map.get(doc_type, extract_radiology_events_from_text)
-
-
-def _event_score(items: List[Dict[str, Any]]) -> int:
-    score = 0
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        score += sum(1 for v in it.values() if v not in (None, "", [], {}))
-    return score
-
-
 @router.post("/llm/classify-and-extract", response_model=ClassifyAndExtractResponse)
 async def llm_classify_and_extract(payload: _DocOrTextRequest):
     raw_text = _resolve_text(payload)
@@ -403,99 +380,3 @@ async def llm_classify_and_extract(payload: _DocOrTextRequest):
 
     # Unknown doc_type fallback: keep extractor output as-is.
     return ClassifyAndExtractResponse(doc_type=doc_type, events=raw_list, raw_events=raw_list, parse_issues=[])
-
-
-class ClassifyAndExtractDebugResponse(BaseModel):
-    doc_type_initial: str
-    doc_type_final: str
-    raw_text: str
-    classify_input_text: str
-    extract_input_text: str
-    llm_raw_events_initial: List[Dict[str, Any]]
-    llm_raw_events_final: List[Dict[str, Any]]
-    normalized_events: List[Dict[str, Any]]
-    mapped_events: List[Dict[str, Any]]
-    parse_issues: List[ParseIssue]
-    mapping_debug: Dict[str, Any]
-    fallback_debug: Dict[str, Any]
-
-
-@router.post("/llm/classify-and-extract-debug", response_model=ClassifyAndExtractDebugResponse)
-async def llm_classify_and_extract_debug(payload: _DocOrTextRequest):
-    raw_text = _resolve_text(payload)
-    classify_input_text = build_classification_text(raw_text)
-    extract_input_text = extract_befund_section(raw_text)
-
-    try:
-        doc_type_initial = classify_document_type(raw_text)
-    except Exception:
-        logger.exception("Debug: Dokumenten-Klassifikation fehlgeschlagen")
-        raise HTTPException(status_code=500, detail="Fehler bei Dokumenten-Klassifikation.")
-
-    # Run classified extractor first, then fallback exactly as in classify_and_extract_from_text.
-    extractor = _extractor_for_doc_type(doc_type_initial)
-    try:
-        initial_events = extractor(raw_text)
-    except Exception:
-        logger.exception("Debug: Initiale Extraktion fehlgeschlagen")
-        raise HTTPException(status_code=500, detail="Fehler bei initialer Extraktion.")
-
-    doc_type_final = doc_type_initial
-    final_events = initial_events
-    fallback_candidates: Dict[str, Dict[str, Any]] = {}
-
-    if not final_events:
-        best_type = doc_type_initial
-        best_events = final_events
-        best_score = _event_score(final_events)
-
-        for t in ("radiology", "radiotherapy", "pathology", "surgery", "sarcoma_board", "systemic_therapy"):
-            if t == doc_type_initial:
-                continue
-            try:
-                candidate = _extractor_for_doc_type(t)(raw_text)
-            except Exception as exc:
-                fallback_candidates[t] = {"error": str(exc), "score": 0, "events_count": 0}
-                continue
-            candidate_score = _event_score(candidate)
-            fallback_candidates[t] = {
-                "score": candidate_score,
-                "events_count": len(candidate),
-            }
-            if candidate_score > best_score:
-                best_type = t
-                best_events = candidate
-                best_score = candidate_score
-
-        doc_type_final = best_type
-        final_events = best_events
-
-    topic, model_cls = _topic_and_model_for_doc_type(doc_type_final)
-    if topic and model_cls:
-        normalized_events, mapping_meta = normalize_raw_events_with_meta(final_events, topic)
-        parsed_events, raw_events, parse_issues = _parse_events_tolerant(normalized_events, model_cls)
-        mapped_events = [evt.model_dump() for evt in parsed_events]
-    else:
-        normalized_events = final_events
-        mapping_meta = {"topic": None, "mismatches": [], "corrections": {}, "before": final_events, "after": final_events}
-        raw_events = final_events
-        parse_issues = []
-        mapped_events = final_events
-
-    return ClassifyAndExtractDebugResponse(
-        doc_type_initial=doc_type_initial,
-        doc_type_final=doc_type_final,
-        raw_text=raw_text,
-        classify_input_text=classify_input_text,
-        extract_input_text=extract_input_text,
-        llm_raw_events_initial=initial_events,
-        llm_raw_events_final=final_events,
-        normalized_events=normalized_events,
-        mapped_events=mapped_events,
-        parse_issues=parse_issues,
-        mapping_debug=mapping_meta,
-        fallback_debug={
-            "used_fallback": doc_type_final != doc_type_initial,
-            "candidates": fallback_candidates,
-        },
-    )
