@@ -847,7 +847,7 @@ class SurgeryEvent(BaseModel):
     @classmethod
     def parse_date(cls, v):
         """
-        Parst flexible Datumsformate (DD.MM.YYYY, DD/MM/YYYY, YYYY-MM-DD)
+        Parst flexible Datumsformate (DD.MM.YYYY, DD.MM.YY, DD/MM/YYYY, YYYY-MM-DD)
         """
         if v is None or (isinstance(v, str) and not v.strip()):
             return None
@@ -858,7 +858,7 @@ class SurgeryEvent(BaseModel):
         if isinstance(v, str):
             s = v.strip()
             s = s.split(' ')[0]  # Entfernt Textanhänge
-            for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d"):
+            for fmt in ("%d.%m.%Y", "%d.%m.%y", "%d/%m/%Y", "%Y-%m-%d"):
                 try:
                     return datetime.strptime(s, fmt).date()
                 except ValueError:

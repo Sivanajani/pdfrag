@@ -16,12 +16,6 @@ import {
   uploadPdfWithText,
   llmExtractMultiByDocId,
   llmExtractMultiByText,
-  llmExtractRadiologyByText,
-  llmExtractRadiotherapyByText,
-  llmExtractPathologyByText,
-  llmExtractSurgeryByText,
-  llmExtractSarcomaBoardByText,
-  llmExtractSystemicTherapyByText,
   type DocType,
   type RadiologyEvent,
   type RadiotherapyEvent,
@@ -345,7 +339,7 @@ export default function UploadWizard({ onResults }: Props) {
           ? await llmExtractMultiByDocId(doc.docId)
           : await llmExtractMultiByText(doc.extractedText);
 
-        const detectedTypes = DOMAIN_KEYS.filter((d) => (result.detected_types ?? []).includes(d));
+        const detectedTypes = DOMAIN_KEYS.filter((d) => d === result.detected_type);
         const mergedByDomain: Partial<Record<DocType, any[]>> = {};
         const allRawEvents: any[] = [];
         const allParseIssues: { event_index: number; field?: string | null; raw_value?: any; error: string }[] = [];
@@ -398,48 +392,43 @@ export default function UploadWizard({ onResults }: Props) {
     setReExtractingIdx(idx);
 
     try {
-      let events: any[];
+      // Dieselbe Pipeline wie extractAll — mit override_type für konsistentes Chunking
+      const result = await llmExtractMultiByText(doc.extractedText, docType);
 
-      if (docType === "radiology") {
-        const res = await llmExtractRadiologyByText(doc.extractedText);
-        events = res.events;
-      } else if (docType === "radiotherapy") {
-        const res = await llmExtractRadiotherapyByText(doc.extractedText);
-        events = res.events;
-      } else if (docType === "pathology") {
-        const res = await llmExtractPathologyByText(doc.extractedText);
-        events = res.events;
-      } else if (docType === "surgery") {
-        const res = await llmExtractSurgeryByText(doc.extractedText);
-        events = res.events;
-      } else if (docType === "sarcoma_board") {
-        const res = await llmExtractSarcomaBoardByText(doc.extractedText);
-        events = res.events;
-      } else if (docType === "systemic_therapy") {
-        const res = await llmExtractSystemicTherapyByText(doc.extractedText);
-        events = res.events;
-      } else {
-        return;
+      const mergedByDomain: Partial<Record<DocType, any[]>> = {};
+      const allRawEvents: any[] = [];
+      const allParseIssues: { event_index: number; field?: string | null; raw_value?: any; error: string }[] = [];
+
+      for (const domain of DOMAIN_KEYS) {
+        const domainResult = result[domain];
+        const mergedEvents = mergeEventLists(domainResult?.events ?? [], domainResult?.raw_events ?? []);
+        mergedByDomain[domain] = mergedEvents;
+        allRawEvents.push(...(domainResult?.raw_events ?? []));
+        allParseIssues.push(
+          ...(domainResult?.parse_issues ?? []).map((issue) => ({
+            ...issue,
+            field: issue.field ? `${domain}.${issue.field}` : domain,
+          }))
+        );
       }
 
-      setDocs((prev) => {
-        const updatedDomainEvents = DOMAIN_KEYS.reduce((acc, domain) => {
-          acc[domain] = domain === docType ? events : [];
-          return acc;
-        }, {} as Partial<Record<DocType, any[]>>);
+      const mergedEvents = DOMAIN_KEYS.flatMap((domain) => mergedByDomain[domain] ?? []);
 
-        const updated = prev.map((d, i) =>
+      setDocs((prev: WizardDoc[]) => {
+        const updated: WizardDoc[] = prev.map((d: WizardDoc, i: number) =>
           i === idx
             ? {
                 ...d,
-                extractedByDomain: updatedDomainEvents,
-                extractedEvents: events,
-                detectedDocType: docType,
-                detectedDocTypes: [docType],
+                detectedDocType: result.detected_type,
+                detectedDocTypes: [result.detected_type],
+                extractedByDomain: mergedByDomain,
+                extractedEvents: mergedEvents,
+                rawExtractedEvents: allRawEvents,
+                parseIssues: allParseIssues,
+                processingMs: result.meta?.total_ms ?? undefined,
               }
             : d
         );
-        // Fire onResults with the updated doc list
         onResults(buildResults(updated));
         return updated;
       });

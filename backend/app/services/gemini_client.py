@@ -1,7 +1,6 @@
 import os
 import json
-import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 import logging
 
 import google.generativeai as genai
@@ -285,7 +284,9 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein vollständiges RadiologyEvent:
 WICHTIGE REGELN:
 
 1. **Datum-Extraktion**:
-   - Wenn Datum im Format "15.01.2024" → konvertiere zu "2024-01-15"
+   - Vierstelliges Jahr: "15.01.2024" → "2024-01-15"
+   - Zweistelliges Jahr: "15.01.25" → "2025-01-15" (immer 20YY)
+   - Datum kann ohne Label stehen (z.B. nur "15.01.25" am Zeilenende)
    - Wenn mehrere Daten: exam_date ist das Untersuchungsdatum
 
 2. **Läsions-Größen**:
@@ -465,73 +466,27 @@ Klassifikation:""".format(text=classify_text)
         return "radiology"
 
 
-_VALID_DOC_TYPES = frozenset({
-    "radiology", "radiotherapy", "pathology", "surgery", "sarcoma_board", "systemic_therapy"
-})
-
-_MULTI_TYPE_PATTERN = re.compile(
-    r"\b(radiology|radiotherapy|pathology|surgery|sarcoma_board|systemic_therapy)\b"
-)
-
-
-def _build_multi_classify_text(text: str, max_chars: int = 8000) -> str:
+def classify_document_type_with_confidence(text: str) -> Tuple[str, float]:
     """
-    Baut einen kompakten Überblick für die Multi-Label-Klassifikation:
-    - Alle Abschnittsüberschriften (zeigen sofort welche Domains vorhanden sind)
-    - Dazu kurze Snippets aus Anfang, Mitte und Ende des Dokuments
-
-    Warum NICHT build_classification_text: Die Funktion nimmt nur Head/Mid/Tail
-    und verpasst bei langen Mischberichten die meisten Domain-Überschriften.
-    """
-    import re as _re
-
-    stripped = text.strip()
-    n = len(stripped)
-
-    # Alle Zeilen extrahieren die wie Überschriften aussehen (kurz, keine langen Sätze)
-    heading_pattern = _re.compile(
-        r"(?im)^[A-ZÄÖÜ][^\n]{2,60}(?::|\.|\s*$)",
-    )
-    headings = heading_pattern.findall(stripped)
-    headings_block = "\n".join(h.strip() for h in headings[:80])  # max 80 Überschriften
-
-    # Kurze Snippets für Kontext
-    chunk = min(1500, n // 4)
-    head = stripped[:chunk]
-    mid_start = max(0, (n // 2) - chunk // 2)
-    middle = stripped[mid_start: mid_start + chunk]
-    tail = stripped[-chunk:] if n > chunk else ""
-
-    parts = [
-        "=== ÜBERSCHRIFTEN / ABSCHNITTSNAMEN ===\n" + headings_block,
-        "=== DOKUMENTANFANG ===\n" + head,
-        "=== DOKUMENTMITTE ===\n" + middle,
-        "=== DOKUMENTENDE ===\n" + tail,
-    ]
-    result = "\n\n".join(parts)
-    return result[:max_chars]
-
-
-def classify_document_types_multi(text: str, max_types: int = 3) -> List[str]:
-    """
-    Multi-Label-Klassifikation: gibt ALLE im Text enthaltenen Dokumenttypen zurück.
-    Nutzt einen Überblick aus allen Überschriften des Dokuments statt nur Head/Mid/Tail,
-    damit bei langen Mischberichten alle Domains erkannt werden.
+    Single-label classification with confidence score.
 
     Returns:
-        Geordnete, deduplizierte Liste aus _VALID_DOC_TYPES, maximal max_types Einträge.
-        Gibt [] zurück wenn nichts erkannt.
+        (label, confidence) where label is one of the 6 valid doc types
+        and confidence is a float in [0.0, 1.0].
+        Falls back to ("radiology", 1.0) on any error.
     """
     if not text or text.strip() == "":
-        return []
+        return "radiology", 1.0
 
     model = _get_model()
-    classify_text = _build_multi_classify_text(text)
+    classify_text = build_classification_text(text)
+
+    valid_types = {"radiology", "radiotherapy", "pathology", "surgery", "sarcoma_board", "systemic_therapy"}
 
     prompt = (
         "Du bist ein medizinischer Dokumenten-Klassifikations-Assistent.\n\n"
-        "AUFGABE: Ein Dokument kann MEHRERE Dokumenttypen enthalten. "
-        "Gib ALLE zutreffenden Typen zurück.\n\n"
+        "AUFGABE: Klassifiziere das Dokument in GENAU EINEN der folgenden Typen "
+        "und gib deine Sicherheit an (0.0–1.0).\n\n"
         "Erlaubte Typen:\n"
         "- radiology: MRT, CT, Röntgen, PET, Ultraschall, Bildgebung\n"
         "- radiotherapy: Strahlentherapie, Gy, Gray, Fraktionen, Bestrahlungsplan\n"
@@ -539,30 +494,44 @@ def classify_document_types_multi(text: str, max_types: int = 3) -> List[str]:
         "- surgery: Operation, OP-Bericht, Resektion, Operateur, Tumorprothese\n"
         "- sarcoma_board: Tumorboard, Sarkomboard, Tumorkonferenz, Board-Entscheidung\n"
         "- systemic_therapy: Chemotherapie, Immuntherapie, Therapielinie, mg/m², Protokoll\n\n"
-        "ANTWORTFORMAT: Kommaseparierte Liste der zutreffenden Typ-Namen.\n"
-        "Beispiel Mischbericht: radiology,pathology,surgery\n"
-        "Beispiel Einzelbefund: radiology\n"
-        "KEIN JSON, KEINE Erklärung, NUR die Typnamen.\n\n"
-        f"Dokumentüberblick:\n{classify_text}\n\nErkannte Typen:"
+        "ANTWORTFORMAT: Genau eine Zeile: <typ>:<konfidenz>\n"
+        "Beispiel: radiology:0.95\n"
+        "KEIN JSON, KEINE Erklärung, NUR typ:konfidenz.\n\n"
+        f"Dokumenttext:\n{classify_text}\n\nKlassifikation:"
     )
 
     try:
         response = model.generate_content(prompt)
         raw = (response.text or "").strip().lower()
-        # Robustes Parsing per Regex – ignoriert alles ausser erlaubten Typnamen
-        found: List[str] = []
-        seen: set = set()
-        for m in _MULTI_TYPE_PATTERN.finditer(raw):
-            t = m.group(1)
-            if t not in seen:
-                seen.add(t)
-                found.append(t)
-                if len(found) >= max_types:
-                    break
-        return found
+        parts = raw.split(":")
+        label = parts[0].strip()
+        confidence = 1.0
+        if len(parts) >= 2:
+            try:
+                confidence = max(0.0, min(1.0, float(parts[1].strip())))
+            except ValueError:
+                confidence = 1.0
+
+        if label in valid_types:
+            return label, confidence
+
+        # Fuzzy fallback (same logic as classify_document_type)
+        if "radio" in label and "therapy" in label:
+            return "radiotherapy", confidence
+        if "patholog" in label:
+            return "pathology", confidence
+        if "surg" in label or "operation" in label:
+            return "surgery", confidence
+        if "sarcoma" in label or "board" in label:
+            return "sarcoma_board", confidence
+        if "systemic" in label or "chemo" in label:
+            return "systemic_therapy", confidence
+        if "radio" in label:
+            return "radiology", confidence
+        return "radiology", 0.5
     except Exception:
-        logger.warning("classify_document_types_multi fehlgeschlagen", exc_info=True)
-        return []
+        logger.warning("classify_document_type_with_confidence fehlgeschlagen", exc_info=True)
+        return "radiology", 1.0
 
 
 def build_classification_text(text: str, chunk_size: int = 1200) -> str:
@@ -687,11 +656,17 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein RadiotherapyEvent:
 WICHTIGE REGELN:
 
 1. **Datum-Extraktion**:
-   - Deutsche Formate "15.01.2024" → "2024-01-15"
+   - Vierstelliges Jahr: "15.01.2024" → "2024-01-15"
+   - Zweistelliges Jahr: "15.01.25" → "2025-01-15" (immer als 20YY interpretieren)
+   - Datumsbereiche: "12.01.25–26.02.26" oder "12.01.25-26.02.26" (Bindestrich oder Gedankenstrich)
+     → therapy_start_date: "2025-01-12", therapy_end_date: "2026-02-26"
+   - "Therapieonkologie 12.01.25–26.02.26" → therapy_start_date: "2025-01-12", therapy_end_date: "2026-02-26"
    - referral_date = Überweisungsdatum
    - first_contact_date = Erstkontakt
-   - therapy_start_date = Therapiebeginn
-   - therapy_end_date = Therapieende
+   - therapy_start_date = erstes Bestrahlungsdatum / "Therapiebeginn" / "erste Fraktion"
+     Wenn wirklich nicht ableitbar → null, NICHT raten
+   - therapy_end_date = letztes Bestrahlungsdatum / "AB-Tel" / "letzte Fraktion"
+     "Abschlussbericht vom XX" ist NICHT therapy_end_date
 
 2. **Dosierung**:
    - "50 Gy" → total_dose_in_gy: 50
@@ -706,11 +681,11 @@ WICHTIGE REGELN:
    - "kurativ" → ["curative"]
    - Mehrere möglich: ["preoperative", "postoperative"]
 
-4. **Therapietypen** (ARRAY! Erlaubte DB-Codes):
+4. **Therapietypen** (ARRAY! Erlaubte DB-Codes — MUSS befüllt werden wenn RT-Typ erkennbar):
    - "IMRT" / "intensitätsmoduliert" → ["intensity_modulated_radiotherapy_imrt"]
    - "VMAT" / "volumetric arc" → ["volumetric_arc_vmat"]
    - "Lattice" / "LRT" → ["lattice_lrt"]
-   - "konventionell 3D" → ["conventional_3d"]
+   - "konventionell 3D" / "CHART" / "normofraktioniert" / "normofractionated" → ["conventional_3d"]
    - "stereotaktisch" / "SBRT" / "SRS" → ["stereotactic_radiotherapy"]
    - "Protonentherapie" → ["proton_therapy"]
    - "intraoperativ Linac" → ["intraoperative_linac"]
@@ -719,10 +694,12 @@ WICHTIGE REGELN:
    - "sequenzieller Boost" → ["sequential_boost"]
    - "simultaner integrierter Boost" / "SIB" → ["simultaneous_integrated_boost"]
    - Mehrere möglich: ["intensity_modulated_radiotherapy_imrt", "sequential_boost"]
+   - Unbekannte Abkürzung: als Raw-Text im comments-Feld ergänzen, therapy_types NICHT leer lassen
 
 5. **Hyperthermie** (Erlaubte DB-Codes):
-   - Keine / nicht durchgeführt → "no"
+   - Nur befüllen wenn EXPLIZIT erwähnt
    - Durchgeführt / geplant / ja → "yes_radiation_hyperthermia"
+   - Nicht erwähnt im Bericht → null (NICHT "no" annehmen!)
 
 6. **Volumina**:
    - "PTV 500 cm³" → ptv_volume_in_cm3: 500
@@ -1295,6 +1272,8 @@ WICHTIGE REGELN:
 
 1. **Datum**: surgery_date ist PFLICHTFELD (Format YYYY-MM-DD)
    - "OP am 15.01.2024" → "2024-01-15"
+   - Zweistelliges Jahr: "OP am 15.01.25" → "2025-01-15" (immer 20YY)
+   - Datum kann ohne Label stehen
 
 2. **Indikation** (DB-Codes verwenden!):
    - "Whoops-Exzision" / "unbeabsichtigt" → "first_surgery_after_whoops"
@@ -1515,6 +1494,8 @@ WICHTIGE REGELN:
 
 1. **Präsentationsdatum**: presentation_date ist PFLICHTFELD!
    - "Board vom 15.01.2024" → "2024-01-15"
+   - Zweistelliges Jahr: "Board vom 15.01.25" → "2025-01-15" (immer 20YY)
+   - Datum kann ohne explizites Label stehen
 
 2. **Board-Entscheidungen**:
    - "Chirurgie empfohlen" → decision_surgery: "yes"
@@ -1751,7 +1732,12 @@ WICHTIGE REGELN:
    - Beispiel: "lundi" -> "monday" -> "monday" (DB-Code)
    - Wenn kein Mapping möglich: raw_text beibehalten (nicht raten).
 
-1. **Therapiegrund und Linie**:
+1. **Datum-Extraktion** (cycle_start_date, cycle_end_date, assessment_date):
+   - Vierstelliges Jahr: "15.01.2024" → "2024-01-15"
+   - Zweistelliges Jahr: "15.01.25" → "2025-01-15" (immer 20YY)
+   - Datum kann ohne Label stehen
+
+2. **Therapiegrund und Linie**:
    - "neoadjuvant" → reason: "curative_intent_neoadjuvant"
    - "adjuvant" → reason: "curative_intent_adjuvant"
    - "palliativ" → reason: "palliative"
@@ -1760,7 +1746,7 @@ WICHTIGE REGELN:
    - "Erhaltungstherapie" → reason: "additive_maintenance"
    - "Studientherapie" → reason: "trial_mandated_systemic_therapy"
 
-2. **Protokolle**:
+3. **Protokolle**:
    - "EURAMOS" → bone_protocol: "euramos"
    - "EuroEWING 2012 VIDE" → bone_protocol: "euroewing_2012_vide"
    - "EuroEWING 2012 VDC/IE" → bone_protocol: "euroewing_2012_vdc_ie"
@@ -1769,7 +1755,7 @@ WICHTIGE REGELN:
    - AI, MAID, Gemcitabine/Docetaxel → softtissue_protocol: "other" + Kommentar
    - Pazopanib-basiert → softtissue_protocol: "pazoqol"
 
-3. **Medikamente** (ARRAY!):
+4. **Medikamente** (ARRAY!):
    - Für jedes Medikament ein eigenes Objekt
    - drug_type → DB-Code verwenden (z.B. "doxorubicin", nicht "Adriamycin (Doxorubicin)")
    - dose_unit → DB-Code: "mg_m2_per_day" für mg/m², "mg_kg_per_day" für mg/kg, "absolute_dose_mg_per_day" für mg
@@ -1784,7 +1770,7 @@ WICHTIGE REGELN:
        administration_day: "monday"
      }
 
-4. **Unerwünschte Ereignisse** (ARRAY!) — CTCAE DB-Codes verwenden**:
+5. **Unerwünschte Ereignisse** (ARRAY!) — CTCAE DB-Codes verwenden**:
    - medical_area → CTCAE-Kategorie-Code (snake_case)
    - event_type → CTCAE-Ereignis-Code (snake_case), falls bekannt; sonst Freitext
    - grade → "grade_1" .. "grade_5"
@@ -1819,16 +1805,16 @@ WICHTIGE REGELN:
        grade: "grade_2"
      }
 
-5. **Zyklen**:
+6. **Zyklen**:
    - "6 Zyklen abgeschlossen" → cycles_executed: "six"
    - "4 von 6 Zyklen" → cycles_executed: "4/6" (raw string, kein DB-Code)
    - "bis zur Progression" → cycles_executed: "until_progression"
 
-6. **Hyperthermie**:
+7. **Hyperthermie**:
    - Keine Hyperthermie / nicht erwähnt → hyperthermia_status: "no"
    - Hyperthermie (geplant/laufend/abgeschlossen) → hyperthermia_status: "yes_chemotherapy_hyperthermia"
 
-7. **Fehlende Werte**: null oder leere Arrays []
+8. **Fehlende Werte**: null oder leere Arrays []
 
 BEISPIELE:
 - "AI-Schema: Adriamycin 75 mg/m² + Ifosfamide 9 g/m²"
@@ -1892,10 +1878,14 @@ def ocr_pdf_with_gemini(pdf_path) -> str:
         model = _get_model()
         response = model.generate_content([
             uploaded_file,
-            "Extrahiere den gesamten Text aus diesem PDF-Dokument. "
-            "Gib NUR den rohen extrahierten Text zurück. "
-            "Keine Einleitung, keine Erklärung, kein Markdown, keine Seitentrenner. "
-            "Beginne direkt mit dem ersten Wort des Dokuments.",
+            "Extrahiere den vollständigen Text aus diesem medizinischen PDF-Dokument.\n\n"
+            "REGELN:\n"
+            "- Gib NUR den extrahierten Text zurück, keine Einleitung, kein Markdown\n"
+            "- Überschriften und Abschnittstitel auf einer eigenen Zeile, mit Leerzeile davor\n"
+            "- Tabellen als Zeilen mit Tabulator zwischen den Spalten (z.B. 'Feld\\tWert')\n"
+            "- Seitenzahlen, Kopf- und Fußzeilen weglassen\n"
+            "- Reihenfolge des Textes exakt wie im Dokument erhalten\n"
+            "- Beginne direkt mit dem ersten inhaltlichen Wort des Dokuments",
         ])
         return response.text or ""
     finally:

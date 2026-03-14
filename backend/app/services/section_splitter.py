@@ -8,6 +8,23 @@ für ihn relevanten Textabschnitte bekommt (token-effizient).
 import re
 from typing import Dict, List, Optional
 
+# Erkennt Anhang-/Anlage-Überschriften am Zeilenanfang
+_APPENDIX_PATTERN = re.compile(
+    r"(?im)^\s*(?:anhang|anh\.|anhänge|anlage(?:n)?|beilage(?:n)?)\s*(?:[:\d.\n]|$)"
+)
+
+
+def strip_appendix(text: str) -> str:
+    """
+    Schneidet alles ab dem ersten Anhang-/Anlage-Header ab.
+    Gibt den unveränderten Text zurück wenn kein Anhang gefunden.
+    """
+    match = _APPENDIX_PATTERN.search(text)
+    if match:
+        return text[: match.start()].rstrip()
+    return text
+
+
 # Regex-Muster für Abschnittsüberschriften (case-insensitive, start of line)
 _HEADER_PATTERN = re.compile(
     r"(?im)^"
@@ -106,8 +123,36 @@ def split_into_sections(text: str, max_chunk_chars: int = 10_000) -> List[Dict]:
 
 def get_text_for_domain(sections: List[Dict], domain: str) -> str:
     """
-    Gibt den zusammengesetzten Text aller Abschnitte zurück die zu einer Domain gehören.
-    Gibt leeren String zurück wenn keine passenden Abschnitte gefunden.
+    Gibt den vollständigen Text aller Abschnitte zurück.
+    Domain-Kontext wird über [DOKUMENTTYP: <domain>] im Chunk-Prompt übermittelt,
+    Keyword-Filtering ist daher redundant und würde relevanten Inhalt verwerfen.
     """
-    relevant = [s["content"] for s in sections if s.get("domain") == domain]
-    return "\n\n".join(relevant)
+    return "\n\n".join(s["content"] for s in sections if s.get("content"))
+
+
+def split_domain_text_into_chunks(text: str, chunk_size: int = 3500, overlap: int = 300) -> List[str]:
+    """
+    Teilt einen langen Domänentext in überlappende Chunks für separate LLM-Calls.
+
+    Schneidet an Zeilenenden um Sätze nicht mittendrin zu trennen.
+    Gibt [text] zurück wenn text <= chunk_size (kein Chunking nötig).
+    """
+    if len(text) <= chunk_size:
+        return [text]
+
+    chunks: List[str] = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        if end < len(text):
+            # An Zeilenende snappen statt mitten im Satz schneiden
+            newline_pos = text.rfind("\n", start, end)
+            if newline_pos > start + overlap:
+                end = newline_pos + 1
+        chunk = text[start:end]
+        if chunk.strip():
+            chunks.append(chunk)
+        if end >= len(text):
+            break
+        start = end - overlap  # Überlappung zurücksetzen
+    return chunks

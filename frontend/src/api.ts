@@ -606,7 +606,8 @@ export type MultiExtractMeta = {
 }
 
 export type MultiExtractResponse = {
-  detected_types: DocType[]
+  detected_type: DocType
+  classification_confidence: number
   radiology: MultiDomainExtractResult
   radiotherapy: MultiDomainExtractResult
   pathology: MultiDomainExtractResult
@@ -616,21 +617,21 @@ export type MultiExtractResponse = {
   meta: MultiExtractMeta
 }
 
-export async function llmExtractMultiByText(text: string): Promise<MultiExtractResponse> {
+export async function llmExtractMultiByText(text: string, override_type?: DocType): Promise<MultiExtractResponse> {
   const res = await fetch(`${API}/llm/extract-multi`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ...(override_type && { override_type }) }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-export async function llmExtractMultiByDocId(docId: string): Promise<MultiExtractResponse> {
+export async function llmExtractMultiByDocId(docId: string, override_type?: DocType): Promise<MultiExtractResponse> {
   const res = await fetch(`${API}/llm/extract-multi`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ doc_id: docId }),
+    body: JSON.stringify({ doc_id: docId, ...(override_type && { override_type }) }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
