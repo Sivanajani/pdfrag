@@ -615,8 +615,9 @@ Gib ein JSON-ARRAY zurück. Jedes Element ist ein RadiotherapyEvent:
     "therapy_start_date": "YYYY-MM-DD" | null,
     "therapy_end_date": "YYYY-MM-DD" | null,
 
-    // Indikationen - ARRAY! (Erlaubte DB-Codes)
-    "indications": ["preoperative" | "postoperative" | "definitive" | "palliative" | "curative"],
+    // Indikationen - ARRAY! Bekannte DB-Codes bevorzugen, sonst Rohtext aus dem Dokument eintragen.
+    // Niemals leer lassen wenn eine Indikation/ein Ziel erkennbar ist!
+    "indications": ["preoperative" | "postoperative" | "definitive" | "palliative" | "curative" | "<rohtext>"],
 
     // Therapietypen - ARRAY! (Erlaubte DB-Codes)
     "therapy_types": [
@@ -673,13 +674,15 @@ WICHTIGE REGELN:
    - "25 Fraktionen" → given_fractions: 25
    - "5 x 5 Gy" → total_dose_in_gy: 25, given_fractions: 5
 
-3. **Indikationen** (ARRAY! Erlaubte DB-Codes):
+3. **Indikationen** (ARRAY! Bekannte DB-Codes bevorzugen, sonst Rohtext):
    - "präoperativ" / "neoadjuvant" → ["preoperative"]
    - "postoperativ" / "adjuvant" → ["postoperative"]
    - "definitiv" → ["definitive"]
    - "palliativ" → ["palliative"]
    - "kurativ" → ["curative"]
    - Mehrere möglich: ["preoperative", "postoperative"]
+   - Kein passender Code? → Originaltext aus dem Dokument übernehmen, z.B. ["Lokalkontrolle"]
+   - NIEMALS leer lassen wenn Indikation/Ziel/Intention im Text erkennbar ist!
 
 4. **Therapietypen** (ARRAY! Erlaubte DB-Codes — MUSS befüllt werden wenn RT-Typ erkennbar):
    - "IMRT" / "intensitätsmoduliert" → ["intensity_modulated_radiotherapy_imrt"]
