@@ -43,3 +43,10 @@ override.tf.json
 .terraformrc
 terraform.rc
 credentials.json
+
+### Local docs ###
+CLAUDE.md
+handover.md
+
+### Claude Code ###
+.claude/
