@@ -12,7 +12,7 @@ TMP_DIR = BASE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- Security constants ---
-MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
+MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024  # 1 GB
 TMP_MAX_AGE_SECONDS = 3600  # 1 hour
 
 _DOC_ID_RE = re.compile(r"^[a-f0-9]{32}$")

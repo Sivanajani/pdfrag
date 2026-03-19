@@ -212,7 +212,11 @@ class RadiotherapyEvent(BaseModel):
             return "stereotactic_radiotherapy"
         if "proton" in lower:
             return "proton_therapy"
-        if "conventional" in lower or "konventionell" in lower or "3d" in lower:
+        if (
+            "conventional" in lower or "konventionell" in lower or "3d" in lower
+            or "chart" in lower
+            or "normofraktioniert" in lower or "normofractionated" in lower
+        ):
             return "conventional_3d"
 
         # No mapping → preserve raw text
@@ -301,7 +305,8 @@ class RadiotherapyEvent(BaseModel):
     @classmethod
     def parse_dates(cls, v):
         """
-        Parst flexible Datumsformate (DD.MM.YYYY, DD/MM/YYYY, YYYY-MM-DD)
+        Parst flexible Datumsformate (DD.MM.YYYY, DD.MM.YY, DD/MM/YYYY, YYYY-MM-DD).
+        Zweistellige Jahre werden als 20YY interpretiert.
         """
         if v is None or (isinstance(v, str) and not v.strip()):
             return None
@@ -313,9 +318,11 @@ class RadiotherapyEvent(BaseModel):
             s = v.strip()
             # Entfernt Textanhänge wie " preoperative" aus dem Datumsstring
             s = s.split(' ')[0]
-            for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d"):
+            for fmt in ("%d.%m.%Y", "%d.%m.%y", "%d/%m/%Y", "%Y-%m-%d"):
                 try:
-                    return datetime.strptime(s, fmt).date()
+                    parsed = datetime.strptime(s, fmt).date()
+                    # %d.%m.%y gibt 2000er Jahre (z.B. "25" → 2025) via Python default
+                    return parsed
                 except ValueError:
                     pass
 

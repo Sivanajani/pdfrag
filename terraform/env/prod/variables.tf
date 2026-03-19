@@ -53,12 +53,12 @@ variable "project-name" {
 
 variable "start-cron" {
   type = string
-  default = "0 6 * * *"
+  default = "0 12 * * *"
 }
 
 variable "stop-cron" {
   type = string
-  default = "00 20 * * *"
+  default = "0 0 * * *"
 }
 
 variable "static-ip-address" {

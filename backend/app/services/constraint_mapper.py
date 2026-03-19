@@ -266,5 +266,4 @@ def normalize_raw_events(
     corrections = _batch_llm_map(mismatches)
     if corrections:
         raw_list = _apply_corrections(raw_list, mismatches, corrections)
-
     return raw_list

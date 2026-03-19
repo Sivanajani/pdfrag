@@ -149,7 +149,7 @@ export const resources = {
       },
       docType: {
         radiology: "Radiologie",
-        radiotherapy: "Strahlentherapie",
+        radiotherapy: "Strahlentherapie (RadioOnkologie)",
         pathology: "Pathologie",
         surgery: "Chirurgie",
         sarcoma_board: "Sarkom-Board",

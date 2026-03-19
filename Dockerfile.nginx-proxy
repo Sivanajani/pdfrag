@@ -1,0 +1,2 @@
+FROM nginxproxy/nginx-proxy:2678-alpine
+COPY nginx-proxy-custom.conf /etc/nginx/conf.d/99-custom.conf

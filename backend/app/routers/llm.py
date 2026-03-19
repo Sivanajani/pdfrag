@@ -1,8 +1,9 @@
 import logging
+import time
 from typing import Optional, List, Any, Dict, Type, TypeVar
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, Field
 
 from app.utils.paths import validate_doc_id
 from app.services.pdf_service import read_pdf_text
@@ -18,8 +19,10 @@ from app.services.gemini_client import (
     extract_systemic_therapy_events_from_text,
     classify_document_type,
     classify_and_extract_from_text,
+    classify_document_type_with_confidence,
 )
 from app.services.constraint_mapper import normalize_raw_events
+from app.services.section_splitter import split_domain_text_into_chunks, strip_appendix
 
 from app.schemas.radiology import RadiologyEvent
 from app.schemas.radioTherapy import RadiotherapyEvent
@@ -38,7 +41,8 @@ router = APIRouter(tags=["llm"])
 class _DocOrTextRequest(BaseModel):
     doc_id: Optional[str] = None
     text: Optional[str] = None
-    max_chars: int = 20000
+    max_chars: Optional[int] = None
+    override_type: Optional[str] = None  # Klassifikation manuell überschreiben
 
 
 def _resolve_text(payload: _DocOrTextRequest) -> str:
@@ -337,6 +341,20 @@ async def llm_extract_systemic_therapy(payload: _DocOrTextRequest):
 class ClassifyAndExtractResponse(BaseModel):
     doc_type: str
     events: List[Dict[str, Any]]
+    raw_events: List[Dict[str, Any]] = []
+    parse_issues: List[ParseIssue] = []
+
+
+def _topic_and_model_for_doc_type(doc_type: str) -> tuple[Optional[str], Optional[Type[BaseModel]]]:
+    mapping: Dict[str, tuple[str, Type[BaseModel]]] = {
+        "radiology": ("radiology_exam", RadiologyEvent),
+        "radiotherapy": ("radio_therapy", RadiotherapyEvent),
+        "pathology": ("pathology", PathologyEvent),
+        "surgery": ("surgery", SurgeryEvent),
+        "sarcoma_board": ("sarcoma_board", SarcomaBoardEvent),
+        "systemic_therapy": ("systemic_therapy", SystemicTherapyEvent),
+    }
+    return mapping.get(doc_type, (None, None))
 
 
 @router.post("/llm/classify-and-extract", response_model=ClassifyAndExtractResponse)
@@ -349,4 +367,231 @@ async def llm_classify_and_extract(payload: _DocOrTextRequest):
         logger.exception("Classify-and-Extract fehlgeschlagen")
         raise HTTPException(status_code=500, detail="Fehler bei Classify-and-Extract.")
 
-    return ClassifyAndExtractResponse(doc_type=result["doc_type"], events=result["events"])
+    doc_type = result["doc_type"]
+    raw_list = result["events"] if isinstance(result.get("events"), list) else []
+
+    topic, model_cls = _topic_and_model_for_doc_type(doc_type)
+    if topic and model_cls:
+        raw_list = normalize_raw_events(raw_list, topic)
+        parsed_events, raw_events, parse_issues = _parse_events_tolerant(raw_list, model_cls)
+        events_payload = [evt.model_dump() for evt in parsed_events]
+        return ClassifyAndExtractResponse(
+            doc_type=doc_type,
+            events=events_payload,
+            raw_events=raw_events,
+            parse_issues=parse_issues,
+        )
+
+    # Unknown doc_type fallback: keep extractor output as-is.
+    return ClassifyAndExtractResponse(doc_type=doc_type, events=raw_list, raw_events=raw_list, parse_issues=[])
+
+
+# --- Multi-Domain Extraction ---
+
+# Mapping: domain → (constraint_topic, extractor_fn, pydantic_model)
+_DOMAIN_CONFIG: Dict[str, tuple] = {
+    "radiology":        ("radiology_exam",   extract_radiology_events_from_text,        RadiologyEvent),
+    "radiotherapy":     ("radio_therapy",    extract_radiotherapy_events_from_text,     RadiotherapyEvent),
+    "pathology":        ("pathology",        extract_pathology_events_from_text,        PathologyEvent),
+    "surgery":          ("surgery",          extract_surgery_events_from_text,          SurgeryEvent),
+    "sarcoma_board":    ("sarcoma_board",    extract_sarcoma_board_events_from_text,    SarcomaBoardEvent),
+    "systemic_therapy": ("systemic_therapy", extract_systemic_therapy_events_from_text, SystemicTherapyEvent),
+}
+
+
+def _validate_radiotherapy_events(events: List[Dict[str, Any]], source_text: str) -> None:
+    """Logs warnings for suspicious or incomplete radiotherapy extraction results."""
+    rt_keywords = ["imrt", "vmat", "sbrt", "brachy", "stereotakt",
+                   "konventionell", "proton", "intraoperativ", "chart", "normofrak"]
+    text_lower = source_text.lower()
+    for i, event in enumerate(events):
+        if not event.get("therapy_types") and any(k in text_lower for k in rt_keywords):
+            logger.warning("Event %d: therapy_types leer obwohl RT-Typ-Keyword im Text", i)
+        start = event.get("therapy_start_date")
+        end = event.get("therapy_end_date")
+        if start and end and str(start) > str(end):
+            logger.warning("Event %d: therapy_start_date %s liegt nach therapy_end_date %s", i, start, end)
+        dose = event.get("total_dose_in_gy")
+        fractions = event.get("given_fractions")
+        if dose and fractions and fractions > 0 and (dose / fractions) > 20:
+            logger.warning("Event %d: Ungewöhnlich hohe Dosis/Fraktion: %.1f Gy", i, dose / fractions)
+
+
+_CHUNK_THRESHOLD = 4_000  # Chars — unterhalb kein Chunking nötig
+
+
+def _extract_with_chunks(
+    text: str,
+    extractor_fn,
+    topic: str,
+    model_cls: type,
+    domain_label: str = "",
+) -> tuple[list, list, list]:
+    """
+    Teilt langen Text in Chunks, extrahiert pro Chunk via LLM (mit
+    Klassifizierungskontext), merged und dedupliziert identische Events.
+
+    Returns: (events, raw_events, parse_issues)
+    """
+    import json as _json
+
+    chunks = split_domain_text_into_chunks(text, chunk_size=3500, overlap=300)
+    logger.debug("Chunked extraction: %d chunk(s) für %d Zeichen (domain=%s)", len(chunks), len(text), domain_label)
+
+    all_raw: List[Dict[str, Any]] = []
+    for i, chunk in enumerate(chunks):
+        # Klassifizierungskontext in jeden Chunk injizieren
+        enriched = f"[DOKUMENTTYP: {domain_label}]\n\n{chunk}" if domain_label else chunk
+        try:
+            chunk_raw = extractor_fn(enriched)
+            all_raw.extend(chunk_raw)
+            logger.debug("Chunk %d/%d: %d Events", i + 1, len(chunks), len(chunk_raw))
+        except Exception:
+            logger.exception("Chunk %d/%d Extraktion fehlgeschlagen", i + 1, len(chunks))
+
+    # Deduplizierung: identische Events (selber JSON-Hash) nur einmal behalten
+    seen: set = set()
+    deduped: List[Dict[str, Any]] = []
+    for ev in all_raw:
+        key = _json.dumps(ev, sort_keys=True, default=str)
+        if key not in seen:
+            seen.add(key)
+            deduped.append(ev)
+
+    normalized = normalize_raw_events(deduped, topic)
+    events, raw_events, parse_issues = _parse_events_tolerant(normalized, model_cls)
+    return events, raw_events, parse_issues
+
+
+class DomainResult(BaseModel):
+    events: List[Dict[str, Any]] = Field(default_factory=list)
+    raw_events: List[Dict[str, Any]] = Field(default_factory=list)
+    parse_issues: List[ParseIssue] = Field(default_factory=list)
+
+
+class DomainMeta(BaseModel):
+    input_chars: int = 0
+    used_section_text: bool = False
+    duration_ms: int = 0
+    events_count: int = 0
+    raw_events_count: int = 0
+    parse_issues_count: int = 0
+    error: Optional[str] = None
+
+
+class MultiExtractMeta(BaseModel):
+    classify_ms: int = 0
+    split_ms: int = 0
+    extract_ms: int = 0
+    total_ms: int = 0
+    domain_meta: Dict[str, DomainMeta] = Field(default_factory=dict)
+
+
+class MultiExtractResponse(BaseModel):
+    detected_type: str = "radiology"
+    classification_confidence: float = 1.0
+    radiology: DomainResult = Field(default_factory=DomainResult)
+    radiotherapy: DomainResult = Field(default_factory=DomainResult)
+    pathology: DomainResult = Field(default_factory=DomainResult)
+    surgery: DomainResult = Field(default_factory=DomainResult)
+    sarcoma_board: DomainResult = Field(default_factory=DomainResult)
+    systemic_therapy: DomainResult = Field(default_factory=DomainResult)
+    meta: MultiExtractMeta = Field(default_factory=MultiExtractMeta)
+
+
+def _extract_multi_domain_result(domain: str, raw_text: str) -> tuple[str, DomainResult, DomainMeta]:
+    started = time.perf_counter()
+    topic, extractor_fn, model_cls = _DOMAIN_CONFIG[domain]
+
+    # Immer Volltext verwenden — kein Section-Filtering, damit kein Inhalt verloren geht.
+    domain_text = raw_text
+
+    try:
+        if len(domain_text) > _CHUNK_THRESHOLD:
+            events, raw_events, parse_issues = _extract_with_chunks(
+                domain_text, extractor_fn, topic, model_cls, domain_label=domain
+            )
+        else:
+            raw_list = extractor_fn(domain_text)
+            raw_list = normalize_raw_events(raw_list, topic)
+            events, raw_events, parse_issues = _parse_events_tolerant(raw_list, model_cls)
+        event_dicts = [e.model_dump() for e in events]
+        if domain == "radiotherapy":
+            _validate_radiotherapy_events(event_dicts, domain_text)
+        result = DomainResult(
+            events=event_dicts,
+            raw_events=raw_events,
+            parse_issues=parse_issues,
+        )
+        err = None
+    except Exception as exc:
+        logger.exception("Extraktion fehlgeschlagen für Domain '%s'", domain)
+        result = DomainResult()
+        err = str(exc)
+
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    meta = DomainMeta(
+        input_chars=len(domain_text),
+        used_section_text=False,
+        duration_ms=duration_ms,
+        events_count=len(result.events),
+        raw_events_count=len(result.raw_events),
+        parse_issues_count=len(result.parse_issues),
+        error=err,
+    )
+    return domain, result, meta
+
+
+@router.post("/llm/extract-multi", response_model=MultiExtractResponse)
+async def llm_extract_multi(payload: _DocOrTextRequest):
+    """
+    Klassifiziert ein Dokument (single-label, top-1) und extrahiert die erkannte Domain.
+
+    Flow:
+    1. Single-label-Klassifikation → detected_type + classification_confidence
+    2. Dokument per Überschriften in Abschnitte teilen + Keyword-Tagging
+    3. Nur die erkannte Domain extrahieren (section-text bevorzugt, Fallback Volltext)
+    4. Normalisierung + Pydantic-Validierung wie bei Einzel-Endpoints
+    """
+    total_started = time.perf_counter()
+    raw_text = strip_appendix(_resolve_text(payload))
+
+    # 1. Klassifikation — override_type hat Vorrang, sonst LLM-Klassifikation
+    classify_started = time.perf_counter()
+    if payload.override_type and payload.override_type in _DOMAIN_CONFIG:
+        detected_type = payload.override_type
+        classification_confidence = 1.0
+        logger.info("Klassifikation überschrieben: '%s'", detected_type)
+    else:
+        try:
+            detected_type, classification_confidence = classify_document_type_with_confidence(raw_text)
+        except Exception:
+            logger.exception("Klassifikation fehlgeschlagen")
+            detected_type, classification_confidence = "radiology", 1.0
+        if detected_type not in _DOMAIN_CONFIG:
+            logger.warning("Unbekannte Domain '%s' – Fallback auf radiology", detected_type)
+            detected_type = "radiology"
+    classify_ms = int((time.perf_counter() - classify_started) * 1000)
+
+    # 2. Volltext an erkannte Domain extrahieren (kein Section-Filtering)
+    extract_started = time.perf_counter()
+    domain_results: Dict[str, DomainResult] = {}
+    domain_meta: Dict[str, DomainMeta] = {}
+    domain, result, meta = _extract_multi_domain_result(detected_type, raw_text)
+    domain_results[domain] = result
+    domain_meta[domain] = meta
+    extract_ms = int((time.perf_counter() - extract_started) * 1000)
+    total_ms = int((time.perf_counter() - total_started) * 1000)
+
+    return MultiExtractResponse(
+        detected_type=detected_type,
+        classification_confidence=classification_confidence,
+        meta=MultiExtractMeta(
+            classify_ms=classify_ms,
+            split_ms=0,
+            extract_ms=extract_ms,
+            total_ms=total_ms,
+            domain_meta=domain_meta,
+        ),
+        **domain_results,
+    )

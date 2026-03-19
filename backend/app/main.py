@@ -42,10 +42,23 @@ app.add_middleware(
 _rate_store: dict[str, list[float]] = defaultdict(list)
 
 
+def _client_ip_from_request(request: Request) -> str:
+    """Use X-Forwarded-For (set by reverse proxy) to avoid grouping all users behind one proxy IP."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        # Standard format: "client, proxy1, proxy2"
+        first = xff.split(",")[0].strip()
+        if first:
+            return first
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
 @app.middleware("http")
 async def rate_limit_llm(request: Request, call_next):
     if request.url.path.startswith("/api/llm/"):
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = _client_ip_from_request(request)
         now = time.time()
         window_start = now - LLM_RATE_WINDOW
 

@@ -1,6 +1,8 @@
 services:
   nginx-proxy:
-    image: docker.io/nginxproxy/nginx-proxy:2678-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx-proxy
     container_name: nginx-proxy
     restart: unless-stopped
     ports:
@@ -10,8 +12,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env
     environment:
