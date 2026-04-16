@@ -109,3 +109,40 @@ Used to store SSL certificates permanently.
 - Least privilege everywhere
 - No public SSH port
 - No API auto-enablement via Terraform
+
+# Dev VM — Manuelles Abschalten & Einschalten
+
+Wenn die Dev-VM nicht benötigt wird (z.B. keine aktive Entwicklung), kann sie manuell gestoppt werden.
+Disk, IP-Adresse und alle Daten bleiben erhalten. Nur minimale Kosten für Disk und reservierte IP fallen weiterhin an.
+
+## Dev VM abschalten
+
+Über die GCP Console → Cloud Shell (`>_`):
+
+```bash
+# 1. Automatischen Start deaktivieren (Resource Policy trennen)
+gcloud compute instances remove-resource-policies pdfrag-dev \
+  --zone europe-west6-b \
+  --project pdfrag-dev \
+  --resource-policies pdfrag-dev-off-hours
+
+# 2. VM stoppen
+gcloud compute instances stop pdfrag-dev \
+  --zone europe-west6-b \
+  --project pdfrag-dev
+```
+
+## Dev VM wieder einschalten
+
+```bash
+# 1. VM starten
+gcloud compute instances start pdfrag-dev \
+  --zone europe-west6-b \
+  --project pdfrag-dev
+
+# 2. Automatischen Start/Stop-Zeitplan wieder aktivieren
+gcloud compute instances add-resource-policies pdfrag-dev \
+  --zone europe-west6-b \
+  --project pdfrag-dev \
+  --resource-policies pdfrag-dev-off-hours
+```
