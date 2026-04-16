@@ -146,3 +146,40 @@ gcloud compute instances add-resource-policies pdfrag-dev \
   --project pdfrag-dev \
   --resource-policies pdfrag-dev-off-hours
 ```
+
+# Prod VM — Manuelles Abschalten & Einschalten
+
+Wenn die Prod-VM nicht benötigt wird (z.B. über längere Zeit keine aktive Nutzung), kann sie manuell gestoppt werden.
+Disk, IP-Adresse, SSL-Zertifikate und alle Daten bleiben erhalten. Nur minimale Kosten für Disk und reservierte IP fallen weiterhin an.
+
+## Prod VM abschalten
+
+Über die GCP Console → Cloud Shell (`>_`):
+
+```bash
+# 1. Automatischen Start deaktivieren (Resource Policy trennen)
+gcloud compute instances remove-resource-policies pdfrag \
+  --zone europe-west6-b \
+  --project pdfrag-prod \
+  --resource-policies pdfrag-off-hours
+
+# 2. VM stoppen
+gcloud compute instances stop pdfrag \
+  --zone europe-west6-b \
+  --project pdfrag-prod
+```
+
+## Prod VM wieder einschalten
+
+```bash
+# 1. VM starten
+gcloud compute instances start pdfrag \
+  --zone europe-west6-b \
+  --project pdfrag-prod
+
+# 2. Automatischen Start/Stop-Zeitplan wieder aktivieren
+gcloud compute instances add-resource-policies pdfrag \
+  --zone europe-west6-b \
+  --project pdfrag-prod \
+  --resource-policies pdfrag-off-hours
+```
